@@ -1,4 +1,4 @@
-master_slave_flip = 0;
+master_slave_flip = 1;
 COM1='COM3';
 COM2='COM4';
 
@@ -22,12 +22,10 @@ end
 
 try
     fopen(master)
-
-    for i = 0 :100
-        [A,count] = fscanf(master)
-    end ;
+    disp(COM);
+    disp('synchronize');
+    fprintf(master,'SYNC$');
     fclose(master);
-
 catch
     msg = ['nepodarilo sa otvorit ', COM, ' port.'];
     disp(msg);

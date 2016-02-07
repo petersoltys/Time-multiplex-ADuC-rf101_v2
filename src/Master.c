@@ -18,6 +18,7 @@
    - V1.3, september 2015  : faster version with higher throughput
    - V1.4, january 2016  : added synchronization
    - V2.0, febtuary 2016  : new time multiplex conception
+   - V2.1, febtuary 2016  : fixed synchronization
 
 note : in radioeng.c was changed intial value from
     static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
@@ -279,11 +280,11 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
     timeout_timer=0;
   }
   
-  //LED_ON;
+  LED_ON;
   //citanie paketu z rf kontrolera
 	if (RIE_Response == RIE_Success)
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
-  //LED_OFF;
+  LED_OFF;
   
   #if THROUGHPUT_MEASURE
     rxThroughput=rxThroughput+PktLen;
@@ -596,11 +597,12 @@ void UART_Int_Handler ()
     rxBuffer[rxUARTcount]= ch;
     rxUARTcount++;
     
-    if (memcmp(rxBuffer,"SYNC$",5) == 0){//end of packet pointer
-      sync_flag = 1;
-      memset(rxBuffer,'\0', rxUARTcount);//clear buffer
-      rxUARTcount = 0;
-    }
+    if (ch == '$')
+      if (memcmp(&rxBuffer[rxUARTcount-5],"SYNC$",5) == 0){//end of packet pointer
+        sync_flag = 1;
+        memset(rxBuffer,'\0', rxUARTcount);//clear buffer
+        rxUARTcount = 0;
+      }
     if (rxUARTcount >= UART_BUFFER_DEEP)//check not overflow buffer
       rxUARTcount = 0;
   }

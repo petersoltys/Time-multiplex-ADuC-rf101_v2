@@ -21,6 +21,7 @@
                              working with "UWB - Coordinate Reader Deployment" from Peter Mikula
    - V1.4, january 2015  : added synchronization
    - V2.0, febtuary 2016  : new time multiplex conception
+   - V2.1, febtuary 2016  : fixed synchronization
 
 note : in radioeng.c was changed intial value from
     static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
