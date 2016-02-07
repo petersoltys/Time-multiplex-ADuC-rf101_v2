@@ -18,7 +18,7 @@ to
 
 **/
 
-/*
+/*******************************************************************************
 * Radio configuration macros
 */
 
@@ -72,9 +72,10 @@ to
 //         Manchester encoding and decoding are applied to the payload data 
 //         and the CRC. 
 
-/*
+/*******************************************************************************
 * Common settings
 */
+
 //maximalna dlzka paketu v pamati
 #define PACKET_MEMORY_DEPTH 240 //
 //maimalny pocet ulozenych paketov v pamati
@@ -86,7 +87,10 @@ to
 //end of string => working with packets is  as with strings
 #define CHAR_OFFSET '0' 
 
-/*
+//time to interrupt = (1/40 000 000) * 256 * SYNC_INTERVAL [s]
+#define SYNC_INTERVAL 200 //200 = 1.28 ms //up to 255 (unsigned char)
+
+/*******************************************************************************
 * Master interface settings
 */
 
@@ -96,9 +100,8 @@ to
 #define T_TIMEOUT 50000 //max time(number of increments) to response of slave
 #define RETRANSMISION 3 //number of retransmiting comand if no response
 
-/*
+/*******************************************************************************
 * Slave interface settings
-* 
 */
 
 //Baudrate is ste to 9600 because of compatibility with 
@@ -107,9 +110,9 @@ to
 
 //slave identificating macros
 #define TIME_SLOT_ID_SLAVE "2slot"//number in string is Slave == 1..4 number
-#define ZERO_PACKET "200"//first number in string is Slave == 1..4 number
-#define RETRANSMISION_ID "2RE"//number in string is Slave == 1..4 number
-#define SLAVE_ID 2 //Slave == 1..4 number
+#define ZERO_PACKET "200"         //first number in string is Slave == 1..4 number
+#define RETRANSMISION_ID "2RE"    //number in string is Slave == 1..4 number
+#define SLAVE_ID 2                //Slave == 1..4 number
 
 
 //head definition
@@ -117,11 +120,16 @@ to
 //format inside of sprintf
 #define HEAD_FORMAT "%d%c%c",SLAVE_ID,txPkt,numOfPackets[actualTxBuffer]-1 
 
-//appended time(number of increments) after transmitin to procesing on master
-//min 1500 
+//hardware based macros
+//appended time(number of increments) after transmition to procesing on master
 #define T_PROCESSING 1500 
 
-/*
+//synchronization pin settings
+#define SYNC_PIN_HIGH DioSet(pADI_GP4,BIT2)
+#define SYNC_PIN_LOW  DioClr(pADI_GP4,BIT2)
+#define SYNC_PIN_READ DioRd(pADI_GP4)&0x04//state of sync pin
+
+/*******************************************************************************
 * debug macros
 */
 #define SIMULATE_RETX 0 //sending retransmitin message to test

@@ -37,10 +37,6 @@ to
 #define LED_OFF DioSet(pADI_GP4,BIT2)//led off
 #define LED_ON  DioClr(pADI_GP4,BIT2)//led on
 
-#define SYNC_PIN_HIGH DioSet(pADI_GP4,BIT2)
-#define SYNC_PIN_LOW  DioClr(pADI_GP4,BIT2)
-
-
 RIE_Responses RIE_Response = RIE_Success;
 unsigned char  Buffer[255];
 RIE_U8         PktLen;
@@ -186,14 +182,14 @@ int dma_printf(const char * format /*format*/, ...)
 */
 void radioSend(char* buff, char len){
   unsigned int safe_timer=0;
-  LED_ON;
+  //LED_ON;
   if (RIE_Response == RIE_Success){
     RIE_Response = RadioTxPacketVariableLen(len, buff); 
     
   if (RIE_Response == RIE_Success)  
   while(!RadioTxPacketComplete());
   }
-  LED_OFF;
+  //LED_OFF;
   while (safe_timer < T_PROCESSING)
     safe_timer++;
   
@@ -270,27 +266,13 @@ void Radio_recieve(void){//pocka na prijatie jedneho paketu
   }
 }
 
-/*
-* function set timer for interval 10ms aproximetly 
-* less than time of master, remaining time is used to transmit last packet
-* after timeout is generated interupt, to mark interupt_flag to terminate 
-* transmit operation
-*/
-void setTimeToTx(void){
-  GptLd (pADI_TM0, 1150); // Interval of 10ms
-  GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_EN|TCON_RLD_EN|TCON_MOD_PERIODIC);
-  while (GptSta(pADI_TM0)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
-  GptClrInt(pADI_TM0,TCLRI_TMOUT);
-  while (GptSta(pADI_TM0)& TSTA_CLRI); // wait for sync of TCLRI write. required because of use of asynchronous clock
-  NVIC_EnableIRQ(TIMER0_IRQn);
-}
 
 /*
 * function set timer for interval 5 10 15ms aproximetly depends on number 
 * of SYNC packet 
 * after timeout is generated interrupt, to set synchronization pin
 */
-void setTimeToSync(int time){
+void setTimeToSync(unsigned int time){
   GptLd (pADI_TM0, time);
   GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_EN|TCON_RLD_EN|TCON_MOD_PERIODIC);
   while (GptSta(pADI_TM0)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
@@ -417,40 +399,27 @@ int main(void)
   SetInterruptPriority();
 	uart_init();
 	led_init();
+  LED_OFF;
 #if THROUGHPUT_MEASURE
   troughputMeasureInit();
 #endif
 	radioInit();//inicialize ratio conection
-  //conectionEstablish();
   
   while (1){
-      Radio_recieve();
+    Radio_recieve();
     
-      //check if sync packet
-      if (0 == memcmp(Buffer,"SYNC",4))
-      {
-        setTimeToSync((Buffer[4]-'1')*500);
-      }
-      
-      //check if retransmit request
-      if (0 == memcmp(Buffer,RETRANSMISION_ID,3))//check if re-tx slot
-      {
-        SYNC_PIN_LOW;
-        TX_flag=1;
-        retransmit();
-        TX_flag=0;
-      }
+    //check if sync packet
+    if (0 == memcmp(Buffer,"SYNC",4))
+      setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
+    
+    //check if retransmit request
+    if (0 == memcmp(Buffer,RETRANSMISION_ID,3))//check if re-tx slot
+      retransmit();
     
     //if this slot identifier belongs to this slave
     if ( 0 == strcmp(Buffer,TIME_SLOT_ID_SLAVE)){
-      SYNC_PIN_LOW;
-    
       if(numOfPackets[actualRxBuffer])//if is something to send
-        {
-        TX_flag=1;
         transmit();
-        TX_flag=0;
-        }
       else
         rf_printf(ZERO_PACKET);
     }
@@ -458,17 +427,22 @@ int main(void)
 }
 ///////////////////////////////////////////////////////////////////////////
 // GP Timer0 Interrupt handler 
-// used for end of transmiting --not used yet
+// used to set synchronization pin
 ///////////////////////////////////////////////////////////////////////////
 void GP_Tmr0_Int_Handler(void){
-//  if (GptSta(pADI_TM0)== TSTA_TMOUT) // if timout interrupt
-//  {   
-//    terminate_flag=1;    
-//    my_slot=0;  
-//  }
-//  GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
-//  // wait for sync of TCON write. required because of use of asynchronous clock
-//  while (GptSta(pADI_TM0)& TSTA_CON); 
+  if (GptSta(pADI_TM0)== TSTA_TMOUT) // if timout interrupt
+  {
+    if (SYNC_PIN_READ)
+      SYNC_PIN_LOW;//negativ synchronization
+    else
+    {//if high then set low and stop timer
+      SYNC_PIN_HIGH;//reset synchronization
+      GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
+      // wait for sync of TCON write. required because of use of asynchronous clock
+      while (GptSta(pADI_TM0)& TSTA_CON); 
+      NVIC_DisableIRQ(TIMER0_IRQn);
+    }
+  }
 }
 ///////////////////////////////////////////////////////////////////////////
 // GP Timer1 Interrupt handler 
@@ -477,8 +451,6 @@ void GP_Tmr0_Int_Handler(void){
 void GP_Tmr1_Int_Handler(void){
   if (GptSta(pADI_TM1)== TSTA_TMOUT) // if timout interrupt
   { 
-    
-    GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
 #if THROUGHPUT_MEASURE
     dma_printf("troughputs TX %d bytes/s RX %d bytes/s */*/*/ \n",txThroughput,rxThroughput); 
     txThroughput=0;

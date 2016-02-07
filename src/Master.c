@@ -59,8 +59,9 @@ signed char numOfPkt[2] = {0,0};//similar as pktMemory
 signed char actualRxBuffer=0,actualTxBuffer=1;
 
 char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];//buffer with last radio dommand
-char txBuffer[256];//buffer for DMA TX UART channel
-char rxBuffer[50];//buffer for RX UART channel - only for directives
+char dmaTxBuffer[255];//buffer for DMA TX UART channel
+#define UART_BUFFER_DEEP 50
+char rxBuffer[UART_BUFFER_DEEP];//buffer for RX UART channel - only for directives
 
 unsigned char slave_ID = 1;//Slave ID
 signed char send=0;
@@ -68,6 +69,7 @@ signed char nextRxPkt=0;
 
 signed char TX_flag=0, flush_flag=0;
 signed char sync_flag = 0;//flag starting sending synchronization packet
+signed char sync_wait = 0;
 signed char firstRxPkt = 0;
 unsigned char rxUARTcount=0;
 
@@ -93,6 +95,9 @@ void DMA_UART_TX_Int_Handler (void);
 void uartInit(void){
   UrtLinCfg(0,UART_BAUD_RATE_MASTER,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);
   DioCfg(pADI_GP1,0x9); // UART functionality on P1.0\P1.1
+
+  UrtIntCfg(0,COMIEN_ERBFI);// enable Rx interrupts
+  NVIC_EnableIRQ(UART_IRQn);// setup to receive data using interrupts
   
   DmaInit();// Create DMA descriptor
   DmaTransferSetup(UARTTX_C,  20,   Buffer);
@@ -108,23 +113,18 @@ void ledInit(void){
   DioOen(pADI_GP4, BIT2); 
 }
 
-///* 
-//* this function set general purpose timer1 to blinking with led on P4.2
-//* see void GP_Tmr1_Int_Handler ()
-//*/
-//void blink(unsigned int time){
-//  GptLd (pADI_TM1, time); // Interval of 
-//  GptCfg(pADI_TM1, TCON_CLK_LFOSC, TCON_PRE_DIV32768, TCON_ENABLE|TCON_MOD_PERIODIC);
-//  while (GptSta(pADI_TM1)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
-//  GptClrInt(pADI_TM1,TCLRI_TMOUT);
-//  while (GptSta(pADI_TM1)& TSTA_CLRI); // wait for sync of TCLRI write. required because of use of asynchronous clock
-//  NVIC_EnableIRQ(TIMER1_IRQn);
-//}
-
-//void blinkDisable(){
-//  NVIC_DisableIRQ(TIMER1_IRQn);
-//  pADI_GP4->GPSET |= 0x04;
-//}
+/* 
+* this function set general purpose timer0 for synchronization intervals
+* see void GP_Tmr1_Int_Handler ()
+*/
+void setSynnicTimer(void){
+  GptLd (pADI_TM0, SYNC_INTERVAL); // Interval of 2ms
+  GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE|TCON_MOD_PERIODIC);
+  while (GptSta(pADI_TM0)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
+  GptClrInt(pADI_TM0,TCLRI_TMOUT);
+  while (GptSta(pADI_TM0)& TSTA_CLRI); // wait for sync of TCLRI write. required because of use of asynchronous clock
+  NVIC_EnableIRQ(TIMER0_IRQn);
+}
 
 /*
 * function for initialise the Radio
@@ -175,8 +175,8 @@ int dma_printf(const char * format /*format*/, ...)
   va_list args;
   va_start( args, format );
    
-  len =vsprintf(txBuffer, format,args);//vlozenie formatovaneho retazca do buff
-  dmaSend(txBuffer,len);
+  len =vsprintf(dmaTxBuffer, format,args);//vlozenie formatovaneho retazca do buff
+  dmaSend(dmaTxBuffer,len);
 
   va_end( args );
   return len;
@@ -237,20 +237,10 @@ unsigned char rf_printf(const char * format /*format*/, ...){
   return len;
 }
 
-///*
-//* set timer in periodic cycle at interval aproximetly 10ms = 1time slot
-//* 
-//*/
-//void timeMultiplexInit(){
-//  GptLd (pADI_TM0, 1270); // Interval of 10ms
-//  GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE|TCON_MOD_PERIODIC);
-//  while (GptSta(pADI_TM0)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
-//  GptClrInt(pADI_TM0,TCLRI_TMOUT);
-//  while (GptSta(pADI_TM0)& TSTA_CLRI); // wait for sync of TCLRI write. required because of use of asynchronous clock
-//  
-//  NVIC_EnableIRQ(TIMER0_IRQn);
-//}
-
+/*
+* set timer in periodic cycle at interval aproximetly 10ms = 1time slot
+* 
+*/
 void sendLastRadioPacket(void){
   unsigned char len = 0;
   len = strlen(lastRadioTransmitBuffer);
@@ -268,7 +258,7 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
 	if (RIE_Response == RIE_Success){
     RIE_Response = RadioRxPacketVariableLen();
   }
-  LED_ON;
+
 	if (RIE_Response == RIE_Success){
     while (!RadioRxPacketAvailable()){
       timeout_timer++;
@@ -288,10 +278,13 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
     }
     timeout_timer=0;
   }
+  
+  //LED_ON;
   //citanie paketu z rf kontrolera
 	if (RIE_Response == RIE_Success)
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
-
+  //LED_OFF;
+  
   #if THROUGHPUT_MEASURE
     rxThroughput=rxThroughput+PktLen;
   #endif
@@ -306,7 +299,6 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
   if (RIE_Response == RIE_Success){
     RIE_Response = RadioRxPacketVariableLen();   
   }
-  LED_OFF;
   return 1;
 }
 
@@ -357,24 +349,22 @@ char getMissPkt(void)
   }
 
 //////////////send request for retransmition if needed//////////////
-      if (numOfReTxPackets != 0)
-      {
-        rf_printf(str);
+  if (numOfReTxPackets != 0)
+  {
+    rf_printf(str);
 
-        #if DEBUG_MESAGES || SIMULATE_RETX
-          dma_printf("  %s of %d \n", str, numOfPkt[actualRxBuffer]);
-        #endif
-        
-        
+    #if DEBUG_MESAGES || SIMULATE_RETX
+      dma_printf("  %s of %d \n", str, numOfPkt[actualRxBuffer]);
+    #endif
+    
 //////////////receive missing packets//////////////
-        for (i=0; i<numOfReTxPackets; i++){
-          //if packet was really received copy buffered packet
-          if (Radio_recieve()){
-            copyBufferToMemory();
-          }
-        }
+    for (i=0; i<numOfReTxPackets; i++){
+      //if packet was really received copy buffered packet
+      if (Radio_recieve()){
+        copyBufferToMemory();
       }
-
+    }
+  }
 }
 
 /*
@@ -396,7 +386,25 @@ void flushBufferedPackets(void){
   DMA_UART_TX_Int_Handler ();
 }
 
+/*
+* transmit 3 synchronization packets
+*/
+void synchronize(void){
+  setSynnicTimer();
+  sync_wait = 1;
+  while(sync_wait == 1);//wait for timer interrupt
+  sync_wait = 1;
+  radioSend("SYNC3",6);//first syn. packet
+  while(sync_wait == 1);
+  sync_wait = 1;
+  radioSend("SYNC2",6);
+  while(sync_wait == 1);
+  radioSend("SYNC1",6);//last syn. packet
 
+  sync_wait = 1;
+  while(sync_wait == 1);//free time before transmitting
+  sync_flag = 0;
+}  
 /*
 */
 void SetInterruptPriority (void){
@@ -416,21 +424,17 @@ int main(void)
   
   WdtGo(T3CON_ENABLE_DIS);
   
-  
   uartInit();
   ledInit();
   radioInit();
   SetInterruptPriority ();
 
-  
   while(1)
   {
-    //LED_ON;
 ///////////////////////slot identificator transmiting////////////////////
     rf_printf(TIME_SLOT_ID_MASTER);//start packet for new multiplex
     numOfPkt[actualRxBuffer]= 0;
     pkt=0;
-    //LED_OFF;
 ///////////////////////receiving data from slave////////////////////
     while (1){//loop for receiving all expecting packets
  
@@ -483,12 +487,8 @@ int main(void)
     
     firstRxPkt=0;
     
-    if (sync_flag == 1){
-      radioSend("SYNC2",6);//first syn. packet
-      radioSend("SYNC1",6);
-      radioSend("SYNC0",6);//last syn. packet
-      sync_flag = 0;
-    }
+    if (sync_flag == 1)
+      synchronize();
   }
 }
 
@@ -511,19 +511,14 @@ void GP_Tmr1_Int_Handler (void)
 
 ///////////////////////////////////////////////////////////////////////////
 // GP Timer0 Interrupt handler 
-// used for transmiting 
+// used for synchronization
 ///////////////////////////////////////////////////////////////////////////
 void GP_Tmr0_Int_Handler(void){
-//  if (GptSta(pADI_TM0)== TSTA_TMOUT) // if timout interrupt
-//  {
-//    nextRxPkt = 0;
-//    firstRxPkt = 0;
-//    terminate_flag=1;//more reliable way to terminate operation is via flag
-//    //slave_ID++;//increment Slave ID
-//    if (slave_ID >= NUM_OF_SLAVE+1)//check Slave ID
-//      slave_ID =0;
-//    send = 1;
-//  }
+  if (GptSta(pADI_TM0)== TSTA_TMOUT){ // if timout interrupt
+    sync_wait=0;
+    if (sync_flag==0)//if synchronize is complete
+      GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -600,15 +595,13 @@ void UART_Int_Handler ()
   
     rxBuffer[rxUARTcount]= ch;
     rxUARTcount++;
-    if (rxBuffer[0] = 'S'){
-      if (memcmp(rxBuffer,"SYNC",4) == 0){//end of packet pointer
-        sync_flag = 1;
-        memset(rxBuffer,'\0', rxUARTcount);//clean buffer
-      }
-      if (rxUARTcount >= 50)//check not overflow buffer
-        rxUARTcount = 0;
-    }else{
-      rxBuffer[0] = '\0';
+    
+    if (memcmp(rxBuffer,"SYNC$",5) == 0){//end of packet pointer
+      sync_flag = 1;
+      memset(rxBuffer,'\0', rxUARTcount);//clear buffer
+      rxUARTcount = 0;
     }
+    if (rxUARTcount >= UART_BUFFER_DEEP)//check not overflow buffer
+      rxUARTcount = 0;
   }
 } 
