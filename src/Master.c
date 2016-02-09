@@ -55,7 +55,8 @@ char pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
   1 actual sending buffer
   for pointing are used flags : actualRxBuffer, actualTxBuffer
 */
-signed char numOfPkt[2] = {0,0};//similar as pktMemory
+unsigned char numOfPkt[2] = {0,0};//similar as pktMemory
+unsigned char actualPacket;
 
 signed char actualRxBuffer=0,actualTxBuffer=1;
 
@@ -66,7 +67,7 @@ char rxBuffer[UART_BUFFER_DEEP];//buffer for RX UART channel - only for directiv
 
 unsigned char slave_ID = 1;//Slave ID
 signed char send=0;
-signed char nextRxPkt=0;
+//signed char nextRxPkt=0;
 
 signed char TX_flag=0, flush_flag=0;
 signed char sync_flag = 0;//flag starting sending synchronization packet
@@ -304,23 +305,14 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
 }
 
 void copyBufferToMemory(void){
-  unsigned char slv,pkt;
-    //extracting slave identifier
-  slv = Buffer[0]-CHAR_OFFSET;
   //extracting number of actual packets
-  pkt = Buffer[1]-CHAR_OFFSET;
-
-  if (slv != slave_ID)//check of slave id (number) expected/transmiting
-    dma_printf("slave id dismatch or not recognizet packet");
+  actualPacket = Buffer[1]-CHAR_OFFSET;
   
   #if SIMULATE_RETX
       dmaSend(" s ",3);
-      //dma_printf("saving pkt %d ",pkt);
+      //dma_printf("saving actualPacket %d ",actualPacket);
   #endif
-  //if number of packet is in range copy to memeory
-  if (pkt > 0 && pkt <= NUM_OF_PACKETS_IN_MEMORY)
-    if (slv <= NUM_OF_SLAVE && slv > 0)
-      strcpy(&pktMemory[actualRxBuffer][pkt-1][0],Buffer);//copy packet to memory
+  strcpy(&pktMemory[actualRxBuffer][actualPacket-1][0],Buffer);//copy packet to memory
 }
 
 /*
@@ -406,6 +398,46 @@ void synchronize(void){
   while(sync_wait == 1);//free time before transmitting
   sync_flag = 0;
 }  
+
+char validPacket(void){
+  unsigned char i,slv,pktNum;
+  
+    //extracting slave identifier
+  slv = Buffer[0]-CHAR_OFFSET;
+  //extracting number of actual packets
+  actualPacket = Buffer[1]-CHAR_OFFSET;
+  //extracting number of actual packets
+  pktNum = Buffer[2]-CHAR_OFFSET;
+  
+  //if first received packet extract num of packets and check slave ID
+  if (firstRxPkt==0){
+    firstRxPkt=1;
+    
+    //extracting number of buffered TX packets
+    numOfPkt[actualRxBuffer] = pktNum;
+    if (numOfPkt[actualRxBuffer] > NUM_OF_PACKETS_IN_MEMORY)
+      {return 0;}
+    
+    //write "waiting flag"- ("w") for expected packets
+    for (i=0; i < numOfPkt[actualRxBuffer] ;i++)
+      pktMemory[actualRxBuffer][i][1]='w';
+  }
+  
+  if (slv != slave_ID)//check of slave id (number) expected/transmiting
+    dma_printf("slave id dismatch or not recognizet packet");
+  
+  if (actualPacket==0)//if zero packet
+    return 0;
+  
+  //if number of packet is in range
+  if (actualPacket > 0 && actualPacket <= NUM_OF_PACKETS_IN_MEMORY)
+    //if number of slave is in range
+    if (slv <= NUM_OF_SLAVE && slv > 0)
+        //if expected total number of packet is same as at begining
+        if (pktNum == numOfPkt[actualRxBuffer])
+          return 1;
+  return 0;
+}
 /*
 */
 void SetInterruptPriority (void){
@@ -421,7 +453,7 @@ void SetInterruptPriority (void){
 
 int main(void)
 { 
-  signed char pkt, slv, i;
+  signed char i;
   
   WdtGo(T3CON_ENABLE_DIS);
   
@@ -434,35 +466,19 @@ int main(void)
   {
 ///////////////////////slot identificator transmiting////////////////////
     rf_printf(TIME_SLOT_ID_MASTER);//start packet for new multiplex
-    numOfPkt[actualRxBuffer]= 0;
-    pkt=0;
+    
 ///////////////////////receiving data from slave////////////////////
     while (1){//loop for receiving all expecting packets
  
       //check if packet is really received
       if (Radio_recieve()){
-        
-        //if first received packet extract num of packets and check slave ID
-        if (firstRxPkt==0){
-          firstRxPkt=1;
-          
-          //extracting number of buffered TX packets
-          numOfPkt[actualRxBuffer] = Buffer[2]-CHAR_OFFSET;
-          if (numOfPkt[actualRxBuffer] > NUM_OF_PACKETS_IN_MEMORY)
-            {break;}
-          
-          //write "waiting flag"- ("w") for expected packets
-          for (i=0; i < numOfPkt[actualRxBuffer] ;i++)
-            pktMemory[actualRxBuffer][i][1]='w';
-        }
-          
         //extracting number of actual packets
-        pkt = Buffer[1]-CHAR_OFFSET;
-        //check if zero packet
-        if (pkt){
+        actualPacket = Buffer[1]-CHAR_OFFSET;
+        
+        if (validPacket()){
           copyBufferToMemory();
         
-          if (pkt >= NUM_OF_PACKETS_IN_MEMORY || pkt == numOfPkt[actualRxBuffer]){
+          if (actualPacket >= NUM_OF_PACKETS_IN_MEMORY || actualPacket == numOfPkt[actualRxBuffer]){
             break;
           }
         }
@@ -480,16 +496,16 @@ int main(void)
       getMissPkt();//get back losted packets
       flushBufferedPackets();//send on UART received packets
     }
-
-    //increment slave number
-    slave_ID++;
+    //if synchronize message received
+    if (sync_flag == 1)
+      synchronize();
+    
+    slave_ID++;//increment slave number 
     if (slave_ID >= NUM_OF_SLAVE)
       slave_ID = 1;
     
     firstRxPkt=0;
-    
-    if (sync_flag == 1)
-      synchronize();
+    numOfPkt[actualRxBuffer]= 0;
   }
 }
 
