@@ -24,6 +24,8 @@
 *.uvgui.*
 *.uvopt
 
+#J-link files
+JLinkLog.txt
 # Listing an OBJECT files
 obj
 *.ewd

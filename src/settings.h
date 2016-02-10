@@ -106,7 +106,7 @@ to
 
 //Baudrate is ste to 9600 because of compatibility with 
 //"UWB - Coordinate Reader Deployment" from Peter Mikula
-#define UART_BAUD_RATE_SLAVE 9600
+#define UART_BAUD_RATE_SLAVE 128000
 
 //slave identificating macros
 #define TIME_SLOT_ID_SLAVE "2slot"//number in string is Slave == 1..4 number

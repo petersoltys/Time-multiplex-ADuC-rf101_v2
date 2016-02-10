@@ -13,11 +13,11 @@ master_baudrate = str2num(strings{1}{idx2+1});
 fclose(settings_file);
 
 if master_slave_flip == 1
-    slave = serial(COM2,'BaudRate',master_baudrate);
-    COM = COM1;
+    slave = serial(COM2,'BaudRate',slave_baudrate);
+    COM = COM2;
 else
-    master = serial(COM1,'BaudRate',master_baudrate);
-    slave = COM2;
+    slave = serial(COM1,'BaudRate',slave_baudrate);
+    COM = COM1;
 end 
 
 

@@ -517,28 +517,24 @@ void UART_Int_Handler (void)
 
   if ((ucCOMIID0 & COMIIR_STA_RXBUFFULL) == COMIIR_STA_RXBUFFULL)	  // Receive buffer full interrupt
   {
-    if (buffer_change_flag == 0){//if actually memory pointers are changing
     
     ch	= UrtRx(0);   //call UrtRd() clears COMIIR_STA_RXBUFFULL
   
     rxUARTbuffer[rxUARTcount]= ch;
     rxUARTcount++;
     
-      if (ch == '$'){//end of packet pointer
-        rxUARTbuffer[rxUARTcount]= '\0';//write end of string
+    if (ch == '$'){//end of packet pointer
+      rxUARTbuffer[rxUARTcount]= '\0';//write end of string
+      if (numOfPackets[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){
         rxPktPtr = &pktMemory[actualRxBuffer][numOfPackets[actualRxBuffer]][HEAD_LENGHT];//pinting beyound packet head
-        
         strcpy(rxPktPtr,rxUARTbuffer);
-        
-        rxUARTcount=0;
-        //if is buffered more than 10 packets dont increment and overwrite last packet
-        if(numOfPackets[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
-          numOfPackets[actualRxBuffer]++;
-         else
-          dma_printf("packet memory is full ");
+        numOfPackets[actualRxBuffer]++;
       }
+      else
+        dma_printf("packet memory is full ");
+      
+      rxUARTcount=0;       
     }
-    buffer_change_flag = 0;
   }
 #endif
 } 
