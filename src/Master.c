@@ -8,9 +8,9 @@
 
              
 
-   @version  V1.3
+   @version  V2.1
    @author   Peter Soltys
-   @date     august 2015  
+   @date     febtuary 2016  
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -212,9 +212,7 @@ void radioSend(char* buff, unsigned char len){
 #endif
     //DMA UART stream
 #if TX_STREAM
-  DmaChanSetup(UARTTX_C,ENABLE,ENABLE);// Enable DMA channel  
-  DmaTransferSetup(UARTTX_C,len-1,buff);
-  UrtDma(0,COMIEN_EDMAT);
+  dmaSend(buff,len-1);
 #endif
 }
 
@@ -242,21 +240,21 @@ unsigned char rf_printf(const char * format /*format*/, ...){
   return len;
 }
 
-/*
-* set timer in periodic cycle at interval aproximetly 10ms = 1time slot
-* 
-*/
-void sendLastRadioPacket(void){
-  unsigned char len = 0;
-  len = strlen(lastRadioTransmitBuffer);
-  radioSend(lastRadioTransmitBuffer, len);
-}
+///*
+//* set timer in periodic cycle at interval aproximetly 10ms = 1time slot
+//* 
+//*/
+//void sendLastRadioPacket(void){
+//  unsigned char len = 0;
+//  len = strlen(lastRadioTransmitBuffer);
+//  radioSend(lastRadioTransmitBuffer, len);
+//}
 
 /*
 * function receive one packet from radio
 * function will wait until packet is received
 */
-char Radio_recieve(void){//pocka na prijatie jedneho paketu
+char radioRecieve(void){//pocka na prijatie jedneho paketu
   unsigned int timeout_timer = 0;
   
 	if (RIE_Response == RIE_Success && RX_flag == 0){
@@ -287,9 +285,7 @@ char Radio_recieve(void){//pocka na prijatie jedneho paketu
   #endif
     //DMA UART stream
   #if RX_STREAM
-    DmaChanSetup(UARTTX_C,ENABLE,DISABLE);// Enable DMA channel  
-    DmaTransferSetup(UARTTX_C,PktLen-1,Buffer);
-    UrtDma(0,COMIEN_EDMAT);
+    dmaSend(Buffer,PktLen-1);
   #endif
   
   //back to receiving mode
@@ -389,7 +385,7 @@ void ifMissPktGet(void)
 //////////////receive missing packets//////////////
     for (i=0; i<numOfReTxPackets; i++){
       //if packet was received copy buffered packet
-      if (Radio_recieve()){
+      if (radioRecieve()){
         if (validPacket())
           copyBufferToMemory();
       }
@@ -460,7 +456,7 @@ char receivePackets(void){
   while (1){//loop for receiving all expecting packets
     
     //if one packet received before timeout
-    if (Radio_recieve()){
+    if (radioRecieve()){
       if (zeroPacket())
         return 0;
       if (validPacket())

@@ -26,6 +26,7 @@
 
 #J-link files
 JLinkLog.txt
+JLinkLog
 # Listing an OBJECT files
 obj
 *.ewd

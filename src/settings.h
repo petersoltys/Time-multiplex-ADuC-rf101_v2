@@ -122,7 +122,7 @@ to
 
 //hardware based macros
 //appended time(number of increments) after transmition to procesing on master
-#define T_PROCESSING 1500 
+#define T_PROCESSING 0 
 
 //synchronization pin settings
 #define SYNC_PIN_HIGH DioSet(pADI_GP4,BIT2)
@@ -142,5 +142,6 @@ to
                               //if ==1 measure throughput of received data from UART
                               //if ==2 measure maximum throughput with shyntetic data
                               //measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
+                              
                               
                               

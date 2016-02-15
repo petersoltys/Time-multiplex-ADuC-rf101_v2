@@ -1,4 +1,4 @@
-master_slave_flip = 1;
+master_slave_flip = 0;
 COM1='COM3';
 COM2='COM4';
 

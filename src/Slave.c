@@ -9,9 +9,9 @@
 
              
 
-   @version  V1.3
+   @version  V2.1
    @author   Peter Soltys
-   @date     august 2015  
+   @date     febtuary 2016 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -22,6 +22,7 @@
    - V1.4, january 2015  : added synchronization
    - V2.0, febtuary 2016  : new time multiplex conception
    - V2.1, febtuary 2016  : fixed synchronization
+
 
 note : in radioeng.c was changed intial value from
     static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
@@ -177,29 +178,62 @@ int dma_printf(const char * format /*format*/, ...)
   return len;
 }
 
+///*
+//* send one packet using radio channel
+//* vysle jeden paket cez radivoy kanal
+//*/
+//void radioSend(char* buff, char len){
+//  unsigned int safe_timer=0;
+//  //LED_ON;
+//  if (RIE_Response == RIE_Success){
+//    RIE_Response = RadioTxPacketVariableLen(len, buff); 
+//    
+//  if (RIE_Response == RIE_Success)  
+//  while(!RadioTxPacketComplete());
+//  }
+//  //LED_OFF;
+//  while (safe_timer < T_PROCESSING)
+//    safe_timer++;
+//  
+//#if THROUGHPUT_MEASURE
+//  txThroughput=txThroughput+len;
+//#endif
+//    //DMA UART stream
+//#if TX_STREAM
+////  printf(buff);
+//  dmaSend(buff,len-1);
+//#endif
+//}
 /*
-* send one packet using radio channel
-* vysle jeden paket cez radivoy kanal
+* send one packet trought radio
+*
 */
-void radioSend(char* buff, char len){
+void radioSend(char* buff, unsigned char len){
+  #if T_PROCESSING
   unsigned int safe_timer=0;
-  //LED_ON;
-  if (RIE_Response == RIE_Success){
+  #endif
+  if (RIE_Response == RIE_Success){//send packet
     RIE_Response = RadioTxPacketVariableLen(len, buff); 
-    
-  if (RIE_Response == RIE_Success)  
-  while(!RadioTxPacketComplete());
+    RX_flag = 0;
   }
-  //LED_OFF;
+  
+  if (RIE_Response == RIE_Success){//wait untill packet sended
+    while(!RadioTxPacketComplete());
+  }
+  #if T_PROCESSING
   while (safe_timer < T_PROCESSING)
     safe_timer++;
+  #endif
+  if (RIE_Response == RIE_Success){//start again receiving mod
+    RIE_Response = RadioRxPacketVariableLen(); 
+    RX_flag = 1;
+  }
   
 #if THROUGHPUT_MEASURE
   txThroughput=txThroughput+len;
 #endif
     //DMA UART stream
 #if TX_STREAM
-//  printf(buff);
   dmaSend(buff,len-1);
 #endif
 }
@@ -235,23 +269,31 @@ unsigned char rf_printf(const char * format /*format*/, ...){
 * function receive one packet from radio
 * function will wait until packet is received
 */
-void Radio_recieve(void){//pocka na prijatie jedneho paketu
+char radioRecieve(void){//pocka na prijatie jedneho paketu
+  unsigned int timeout_timer = 0;
   
-	if (RIE_Response == RIE_Success){
-    RIE_Response = RadioRxPacketVariableLen();   
-    terminate_flag = 0 ;
+	if (RIE_Response == RIE_Success && RX_flag == 0){
+    RIE_Response = RadioRxPacketVariableLen();
+    RX_flag = 1;
   }
-	if (RIE_Response == RIE_Success){
-    while (!RadioRxPacketAvailable() && terminate_flag==0){
-      debugTimer++;
-      if (debugTimer > T_TIMEOUT)//turn on led if nothing is received (master stop working)
+
+	if (RIE_Response == RIE_Success && RX_flag == 1){
+    while (!RadioRxPacketAvailable()){
+      timeout_timer++;
+      //turn on led if nothing is received after timeout
+      if (timeout_timer > T_TIMEOUT+1000){
         LED_ON;
+        return 0;
       }
-    debugTimer=0;
+    }
+    RX_flag=0;
   }
+  
+  //LED_ON;
   //citanie paketu z rf kontrolera
 	if (RIE_Response == RIE_Success)
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
+  //LED_OFF;
   
   #if THROUGHPUT_MEASURE
     rxThroughput=rxThroughput+PktLen;
@@ -262,10 +304,47 @@ void Radio_recieve(void){//pocka na prijatie jedneho paketu
   #endif
   
   //back to receiving mode
-  if (RIE_Response == RIE_Success){
+  if (RIE_Response == RIE_Success && RX_flag == 0){
     RIE_Response = RadioRxPacketVariableLen();   
+    RX_flag = 1;
   }
+  return 1;
 }
+///*
+//* function receive one packet from radio
+//* function will wait until packet is received
+//*/
+//void Radio_recieve(void){//pocka na prijatie jedneho paketu
+//  
+//	if (RIE_Response == RIE_Success){
+//    RIE_Response = RadioRxPacketVariableLen();   
+//    terminate_flag = 0 ;
+//  }
+//	if (RIE_Response == RIE_Success){
+//    while (!RadioRxPacketAvailable() && terminate_flag==0){
+//      debugTimer++;
+//      if (debugTimer > T_TIMEOUT)//turn on led if nothing is received (master stop working)
+//        LED_ON;
+//      }
+//    debugTimer=0;
+//  }
+//  //citanie paketu z rf kontrolera
+//	if (RIE_Response == RIE_Success)
+//    RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
+//  
+//  #if THROUGHPUT_MEASURE
+//    rxThroughput=rxThroughput+PktLen;
+//  #endif
+//    //DMA UART stream
+//  #if RX_STREAM
+//    dmaSend(Buffer,PktLen-1);
+//  #endif
+//  
+//  //back to receiving mode
+//  if (RIE_Response == RIE_Success){
+//    RIE_Response = RadioRxPacketVariableLen();   
+//  }
+//}
 
 
 /*
@@ -324,24 +403,17 @@ char transmit(void){
 
   my_slot=1;
 
-//    buffer_change_flag = 1;
-    NVIC_DisableIRQ(UART_IRQn);
-      //change buffer pointers
-      actualRxBuffer++;
-      actualTxBuffer++;
-      if(actualRxBuffer>=2)
-        actualRxBuffer=0;
-      else if(actualTxBuffer>=2)
-        actualTxBuffer=0;
-      
-      numOfPackets[actualRxBuffer]=0;
-    NVIC_EnableIRQ(UART_IRQn);
-      
-//    if (buffer_change_flag == 0)//call uart interrupt to work with new pointers
-//      UART_Int_Handler ();
-//    buffer_change_flag = 0;
-  
-  
+  NVIC_DisableIRQ(UART_IRQn);
+    //change buffer pointers
+    actualRxBuffer++;
+    actualTxBuffer++;
+    if(actualRxBuffer>=2)
+      actualRxBuffer=0;
+    else if(actualTxBuffer>=2)
+      actualTxBuffer=0;
+    
+    numOfPackets[actualRxBuffer]=0;
+  NVIC_EnableIRQ(UART_IRQn);  
   
   while (my_slot == 1 && (txPkt < numOfPackets[actualTxBuffer]) ){     //while interupt ocurs send avaliable packets
     
@@ -407,22 +479,23 @@ int main(void)
 	radioInit();//inicialize ratio conection
   
   while (1){
-    Radio_recieve();
-    
-    //check if sync packet
-    if (0 == memcmp(Buffer,"SYNC",4))
-      setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
-    
-    //check if retransmit request
-    if (0 == memcmp(Buffer,RETRANSMISION_ID,3))//check if re-tx slot
-      retransmit();
-    
-    //if this slot identifier belongs to this slave
-    if ( 0 == strcmp(Buffer,TIME_SLOT_ID_SLAVE)){
-      if(numOfPackets[actualRxBuffer])//if is something to send
-        transmit();
-      else
-        rf_printf(ZERO_PACKET);
+    if (radioRecieve()){
+      
+      //if this slot identifier belongs to this slave
+      if ( 0 == strcmp(Buffer,TIME_SLOT_ID_SLAVE)){
+        if(numOfPackets[actualRxBuffer])//if is something to send
+          transmit();
+        else
+          rf_printf(ZERO_PACKET);
+      }
+      
+      //check if retransmit request
+      if (0 == memcmp(Buffer,RETRANSMISION_ID,3))//check if re-tx slot
+        retransmit();
+      
+      //check if sync packet
+      if (0 == memcmp(Buffer,"SYNC",4))
+        setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
     }
   }
 }
@@ -538,3 +611,4 @@ void UART_Int_Handler (void)
   }
 #endif
 } 
+
