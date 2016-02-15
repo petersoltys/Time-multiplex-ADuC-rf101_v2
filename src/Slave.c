@@ -22,7 +22,7 @@
    - V1.4, january 2015  : added synchronization
    - V2.0, febtuary 2016  : new time multiplex conception
    - V2.1, febtuary 2016  : fixed synchronization
-
+   - V2.1B, febtuary 2016  : Binary data packets (instead of strings with STRING_TERMINATOR)
 
 note : in radioeng.c was changed intial value from
     static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
@@ -53,7 +53,11 @@ char pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
   1 actual sending buffer
   for pointing are used flags : actualRxBuffer, actualTxBuffer,
 */
-char numOfPackets[2] = {0,0};//similar like pktMemory
+          // [level]
+char numOfPkt[2] = {0,0};//similar like pktMemory
+                      // [level][lenght]
+unsigned char lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] = {0,0};//similar like pktMemory
+
 
 char actualRxBuffer=0;
 char actualTxBuffer=1;
@@ -83,7 +87,7 @@ int rxThroughput;
 * output port P1.0\P1.1
 */
 void uart_init(void){
-  rxPktPtr =&pktMemory[actualRxBuffer][numOfPackets[actualRxBuffer]][HEAD_LENGHT+1];//pinting beyound packet head
+  rxPktPtr =&pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT+1];//pinting beyound packet head
   
 	UrtLinCfg(0,UART_BAUD_RATE_SLAVE,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);//configure uart
   DioCfg(pADI_GP1,0x9); // UART functionality on P1.0\P1.1
@@ -351,21 +355,25 @@ char transmit(void){
     else if(actualTxBuffer>=2)
       actualTxBuffer=0;
     
-    numOfPackets[actualRxBuffer]=0;
+    numOfPkt[actualRxBuffer]=0;
   NVIC_EnableIRQ(UART_IRQn);  
   
-  while (my_slot == 1 && (txPkt < numOfPackets[actualTxBuffer]) ){     //while interupt ocurs send avaliable packets
+  while (my_slot == 1 && (txPkt < numOfPkt[actualTxBuffer]) ){     //while interupt ocurs send avaliable packets
     
     pktMemoryPtr = &pktMemory[actualTxBuffer][txPkt][0];
     
     //build head of packet
-    pktMemoryPtr[2] = numOfPackets[actualTxBuffer] + CHAR_OFFSET;
+    pktMemoryPtr[2] = numOfPkt[actualTxBuffer] + CHAR_OFFSET;
     pktMemoryPtr[1] = txPkt + CHAR_OFFSET + 1;
     pktMemoryPtr[0] = SLAVE_ID + CHAR_OFFSET; 
 
     //dma_printf(pktMemoryPtr);
+    #if BINARY_MODE
+    radioSend(pktMemoryPtr,(lenghtOfPkt[actualTxBuffer][txPkt]+3));//send packet
+    #else
     rf_printf(pktMemoryPtr);//send packet
-
+    #endif
+    
     txPkt++;
   }
   return txPkt;//return number of transmited packets
@@ -384,7 +392,11 @@ char retransmit(void){
   strcpy(reTxPkt,Buffer);
   while ((reTxPkt[pkt]!='\0') && my_slot==1 && terminate_flag == 0)//retransmit only until interupt occur
   {
+    #if BINARY_MODE
+    radioSend(&pktMemory[actualTxBuffer][pkt][0],(lenghtOfPkt[actualTxBuffer][pkt]+3));
+    #else 
     rf_printf(&pktMemory[actualTxBuffer][(reTxPkt[pkt]-CHAR_OFFSET)][0]);
+    #endif
     pkt++;
   }
   return (pkt-3);
@@ -422,7 +434,7 @@ int main(void)
       
       //if this slot identifier belongs to this slave
       if ( 0 == strcmp(Buffer,TIME_SLOT_ID_SLAVE)){
-        if(numOfPackets[actualRxBuffer])//if is something to send
+        if(numOfPkt[actualRxBuffer])//if is something to send
           transmit();
         else
           rf_printf(ZERO_PACKET);
@@ -494,11 +506,11 @@ void DMA_UART_RX_Int_Handler   ()
   UrtDma(0,COMIEN_EDMAT); // prevents additional byte to restart DMA transfer
   
   //if is buffered more than 10 packets dont increment and overwrite last packet
-  if(numOfPackets[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
-    numOfPackets[actualRxBuffer]++;
+  if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
+    numOfPkt[actualRxBuffer]++;
   
   //ste pinter to point at new place in memory pointing beyound packet head
-  rxPktPtr = &pktMemory[actualRxBuffer][numOfPackets[actualRxBuffer]][HEAD_LENGHT];
+  rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
   
   //enable RX DMA chanel for receiving next packets forom UART
   DmaChanSetup(UARTRX_C,ENABLE,ENABLE);// Enable DMA channel  
@@ -535,12 +547,21 @@ void UART_Int_Handler (void)
     rxUARTbuffer[rxUARTcount]= ch;
     rxUARTcount++;
     
-    if (ch == '$'){//end of packet pointer
+    #if BINARY_MODE
+    if (rxUARTcount >= (PACKET_MEMORY_DEPTH-3)){//packte full
+      if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){//copy to memory
+        rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];//pinting beyound packet head
+        memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);
+        lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;
+        numOfPkt[actualRxBuffer]++;
+    #else
+    if (ch == STRING_TERMINATOR){//end of packet pointer
       rxUARTbuffer[rxUARTcount]= '\0';//write end of string
-      if (numOfPackets[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){
-        rxPktPtr = &pktMemory[actualRxBuffer][numOfPackets[actualRxBuffer]][HEAD_LENGHT];//pinting beyound packet head
+      if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){
+        rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];//pinting beyound packet head
         strcpy(rxPktPtr,rxUARTbuffer);
-        numOfPackets[actualRxBuffer]++;
+        numOfPkt[actualRxBuffer]++;     
+    #endif
       }
       else
         dma_printf("packet memory is full ");

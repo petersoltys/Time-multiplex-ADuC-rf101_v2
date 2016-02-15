@@ -75,7 +75,8 @@ to
 /*******************************************************************************
 * Common settings
 */
-
+#define BINARY_MODE 1
+#define STRING_TERMINATOR
 //maximalna dlzka paketu v pamati
 #define PACKET_MEMORY_DEPTH 240 //
 //maimalny pocet ulozenych paketov v pamati

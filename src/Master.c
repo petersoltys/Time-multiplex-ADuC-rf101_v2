@@ -19,6 +19,7 @@
    - V1.4, january 2016  : added synchronization
    - V2.0, febtuary 2016  : new time multiplex conception
    - V2.1, febtuary 2016  : fixed synchronization
+   - V2.1B, febtuary 2016  : Binary data packets (instead of strings with STRING_TERMINATOR)
 
 note : in radioeng.c was changed intial value from
     static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
@@ -55,7 +56,11 @@ char pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
   1 actual sending buffer
   for pointing are used flags : actualRxBuffer, actualTxBuffer
 */
-unsigned char numOfPkt[2] = {0,0};//similar as pktMemory
+          // [level]
+char numOfPkt[2] = {0,0};//similar like pktMemory
+                      // [level][lenght]
+unsigned char lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] = {0,0};//similar like pktMemory
+
 unsigned char actualPacket;
 
 signed char actualRxBuffer=0,actualTxBuffer=1;
@@ -334,7 +339,12 @@ void copyBufferToMemory(void){
       dmaSend(" s ",3);
       //dma_printf("saving actualPacket %d ",actualPacket);
   #endif
+  #if BINARY_MODE
+  memcpy((&pktMemory[actualRxBuffer][actualPacket-1][0]),Buffer,PktLen);//copy packet to memory
+  lenghtOfPkt[actualRxBuffer][actualPacket-1] = PktLen;
+  #else
   strcpy(&pktMemory[actualRxBuffer][actualPacket-1][0],Buffer);//copy packet to memory
+  #endif
 }
 
 /*
@@ -575,15 +585,20 @@ void DMA_UART_TX_Int_Handler (void)
       
       if(dmaTxPtr[1]!='w'){//try if packet is received waiting flag
         
-        while(dmaTxPtr[len]!='\0'){//get lenght of packet
-          len++;
-        }
-        
+        #if BINARY_MODE
+          len = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
+        #else
+          while(dmaTxPtr[len]!='\0'){//get lenght of packet
+            len++;
+          }
+        #endif
+          
         #if SEND_HEAD
           dmaSend(dmaTxPtr,len);//send data with head
         #else
           dmaSend(dmaTxPtr+HEAD_LENGHT, len-HEAD_LENGHT);//send only data without head
         #endif
+        
         
 //        dmaTx_flag=1;
       }
