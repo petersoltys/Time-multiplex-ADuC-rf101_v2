@@ -178,32 +178,7 @@ int dma_printf(const char * format /*format*/, ...)
   return len;
 }
 
-///*
-//* send one packet using radio channel
-//* vysle jeden paket cez radivoy kanal
-//*/
-//void radioSend(char* buff, char len){
-//  unsigned int safe_timer=0;
-//  //LED_ON;
-//  if (RIE_Response == RIE_Success){
-//    RIE_Response = RadioTxPacketVariableLen(len, buff); 
-//    
-//  if (RIE_Response == RIE_Success)  
-//  while(!RadioTxPacketComplete());
-//  }
-//  //LED_OFF;
-//  while (safe_timer < T_PROCESSING)
-//    safe_timer++;
-//  
-//#if THROUGHPUT_MEASURE
-//  txThroughput=txThroughput+len;
-//#endif
-//    //DMA UART stream
-//#if TX_STREAM
-////  printf(buff);
-//  dmaSend(buff,len-1);
-//#endif
-//}
+
 /*
 * send one packet trought radio
 *
@@ -310,42 +285,6 @@ char radioRecieve(void){//pocka na prijatie jedneho paketu
   }
   return 1;
 }
-///*
-//* function receive one packet from radio
-//* function will wait until packet is received
-//*/
-//void Radio_recieve(void){//pocka na prijatie jedneho paketu
-//  
-//	if (RIE_Response == RIE_Success){
-//    RIE_Response = RadioRxPacketVariableLen();   
-//    terminate_flag = 0 ;
-//  }
-//	if (RIE_Response == RIE_Success){
-//    while (!RadioRxPacketAvailable() && terminate_flag==0){
-//      debugTimer++;
-//      if (debugTimer > T_TIMEOUT)//turn on led if nothing is received (master stop working)
-//        LED_ON;
-//      }
-//    debugTimer=0;
-//  }
-//  //citanie paketu z rf kontrolera
-//	if (RIE_Response == RIE_Success)
-//    RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
-//  
-//  #if THROUGHPUT_MEASURE
-//    rxThroughput=rxThroughput+PktLen;
-//  #endif
-//    //DMA UART stream
-//  #if RX_STREAM
-//    dmaSend(Buffer,PktLen-1);
-//  #endif
-//  
-//  //back to receiving mode
-//  if (RIE_Response == RIE_Success){
-//    RIE_Response = RadioRxPacketVariableLen();   
-//  }
-//}
-
 
 /*
 * function set timer for interval 5 10 15ms aproximetly depends on number 

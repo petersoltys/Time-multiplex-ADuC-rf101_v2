@@ -240,16 +240,6 @@ unsigned char rf_printf(const char * format /*format*/, ...){
   return len;
 }
 
-///*
-//* set timer in periodic cycle at interval aproximetly 10ms = 1time slot
-//* 
-//*/
-//void sendLastRadioPacket(void){
-//  unsigned char len = 0;
-//  len = strlen(lastRadioTransmitBuffer);
-//  radioSend(lastRadioTransmitBuffer, len);
-//}
-
 /*
 * function receive one packet from radio
 * function will wait until packet is received
@@ -605,14 +595,7 @@ void DMA_UART_TX_Int_Handler (void)
     }
     else{ //all data sended
       flush_flag=0;
-//      dmaTx_flag=1;//end of recurent calls
     }
-//      
-//    if(dmaTx_flag == 1)
-//      //if some data are sended DMA_UART_TX_Int_Handler is called after end of transmision
-//      dmaTx_flag=0;
-//    else
-//      DMA_UART_TX_Int_Handler();//recurent call while are data sended 
   }
 }
 
