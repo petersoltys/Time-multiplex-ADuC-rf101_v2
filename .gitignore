@@ -27,6 +27,10 @@
 #J-link files
 JLinkLog.txt
 JLinkLog
+
+# Document files
+doxygen
+
 # Listing an OBJECT files
 obj
 *.ewd

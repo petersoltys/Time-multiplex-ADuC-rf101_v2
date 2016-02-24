@@ -1,6 +1,6 @@
 /**
  *****************************************************************************
-   @example  Slave.c
+   @file     Slave.c
    @brief    prigram used for transmiting data in time multiplex
              data are received via UART and sended trouhgt radio interface
              during associated time slot 
@@ -9,7 +9,7 @@
 
              
 
-   @version  V2.1
+   @version  V2.1B
    @author   Peter Soltys
    @date     febtuary 2016 
 
@@ -24,13 +24,27 @@
    - V2.1, febtuary 2016  : fixed synchronization
    - V2.1B, febtuary 2016  : Binary data packets (instead of strings with STRING_TERMINATOR)
 
-note : in radioeng.c was changed intial value from
-    static RIE_BOOL             bPacketTx                     = RIE_FALSE; 
-    static RIE_BOOL             bPacketRx                     = RIE_FALSE; 
-to 
-    static RIE_BOOL             bPacketTx                     = RIE_TRUE; 
-    static RIE_BOOL             bPacketRx                     = RIE_TRUE; 
+  @note : in radioeng.c was changed intial value from \n
+      static RIE_BOOL             bPacketTx                     = RIE_FALSE; \n
+      static RIE_BOOL             bPacketRx                     = RIE_FALSE; \n
+  to \n
+      static RIE_BOOL             bPacketTx                     = RIE_TRUE; \n
+      static RIE_BOOL             bPacketRx                     = RIE_TRUE; \n
 
+  @section Disclaimer
+  THIS SOFTWARE IS PROVIDED BY BC PETER SOLTYS. ``AS IS'' AND ANY EXPRESS OR
+  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE
+  DISCLAIMED. IN NO EVENT SHALL BC PETER SOLTYS. BE LIABLE FOR ANY DIRECT,
+  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
+
+  YOU ASSUME ANY AND ALL RISK FROM THE USE OF THIS CODE OR SUPPORT FILE.
+
+  IT IS THE RESPONSIBILITY OF THE PERSON INTEGRATING THIS CODE INTO AN APPLICATION
+  TO ENSURE THAT THE RESULTING APPLICATION PERFORMS AS REQUIRED AND IS SAFE.
+  <hr>
 **/
 #include "include.h"
 #include "settings.h"
@@ -79,13 +93,17 @@ int txThroughput;
 int rxThroughput;
 #endif
 
-/*
-* initializing uart port
-* speed UART_BAUD_RATE_SLAVE baud
-* 8 bits
-* one stop bit
-* output port P1.0\P1.1
-*/
+/** 
+   @fn     void uartInit(void)
+   @brief  initialize uart port
+   @code    
+      uartInit();
+   @endcode
+   @note    speed UART_BAUD_RATE_MASTER baud
+            8 bits
+            one stop bit
+            output port P1.0\P1.1
+**/
 void uart_init(void){
   rxPktPtr =&pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT+1];//pinting beyound packet head
   
@@ -114,9 +132,8 @@ void uart_init(void){
 #endif
 }
 
-/*
-* initializing port with led
-* inicializovanie portu na ktorom je pripojena user specified led
+/**
+* @brief initialize port with led diode
 */
 void led_init(void){
 	  // P4.2  as output
@@ -124,10 +141,15 @@ void led_init(void){
   DioOen(pADI_GP4, BIT2); 
 }
 
-/*
-* function for initialise the Radio
-* funkcia na inicializovanie radioveho prenosu
-*/
+/** 
+   @fn     void radioInit(void)
+   @brief  initialize Radio interface
+   @code    
+      radioInit();
+   @endcode
+   @see settings.h
+   @note   see settings.h for radio configuration
+**/
 void radioInit(void){
   // Initialise the Radio
   if (RIE_Response == RIE_Success)
@@ -149,10 +171,20 @@ void radioInit(void){
     RadioPayldManchesterEncode(RADIO_MANCHASTER);
 }
 
-/*
-* send one packet on UART with DMA controller
-* before call this function is nessesary to initialize UART
-*/
+/** 
+   @fn     void  dmaSend(unsigned char* buff, int len)
+   @brief  send one packet on UART with DMA controller
+   @param  buff :{} pointer to data to send
+   @param  len :{int range} number of bytes to send
+   @pre    uartInit() must be called before this can be called.
+   @code  
+        uartInit();
+        len =vsprintf(dmaTxBuffer, format,args);//vlozenie formatovaneho retazca do buff
+        dmaSend(dmaTxBuffer,len);
+   @endcode
+   @note    after end of transmision is called DMA_UART_TX_Int_Handler (void)
+   @see DMA_UART_TX_Int_Handler
+**/
 void  dmaSend(unsigned char* buff, int len){
     //DMA UART stream
     DmaChanSetup(UARTTX_C,ENABLE,ENABLE);// Enable DMA channel  
@@ -160,14 +192,22 @@ void  dmaSend(unsigned char* buff, int len){
     UrtDma(0,COMIEN_EDMAT);
 }
 
-/*
-* this function is equivalent to function printf from library stdio.h
-* output stream is managed with DMA controller 
-* before call this function is nessesary to initialize UART
-* Tato funkcia je ekvivalentna k funkcii printf z kniznice stdio.h
-* Vystup je smerovany cez DMA na UART
-* Pred volanim tejto funkcie je nutne inicializovat uart
-*/
+/** 
+   @fn     int dma_printf(const char * format , ...)
+   @brief  this function is equivalent to function printf from library stdio.h
+   @param  format : {} pointer at string to formating output string
+   @param  ... :{} additive parameters for formating string
+   @pre    uartInit() must be called before this can be called.
+   @code    
+      uartInit();
+      int num = 10;
+      dma_printf();
+   @endcode
+   @note    output stream is managed with DMA controller 
+            after end of transmision is called DMA_UART_TX_Int_Handler
+   @see DMA_UART_TX_Int_Handler  
+   @return  int number of sending chars (if == 0 error)
+**/
 int dma_printf(const char * format /*format*/, ...)
 {
   char buff[256];
@@ -183,10 +223,20 @@ int dma_printf(const char * format /*format*/, ...)
 }
 
 
-/*
-* send one packet trought radio
-*
-*/
+/** 
+   @fn     void radioSend(char* buff, unsigned char len)
+   @brief  send one packet trought radio interface
+   @param  buff :{1-240} pointer at memory to be sended
+   @param  len :{0-240} number of bytes to be sended
+   @pre    radioInit() must be called before this function is called.
+   @code    
+      len=vsprintf(buff, format,args);//@see rf_printf();
+      if(len<240){//check max lenght 
+        radioSend(buff,len+1);//send formated packet
+   @endcode
+   @note    output stream is trought radio interface
+            function is waiting until whole packet is trnsmited
+**/
 void radioSend(char* buff, unsigned char len){
   #if T_PROCESSING
   unsigned int safe_timer=0;
@@ -217,15 +267,22 @@ void radioSend(char* buff, unsigned char len){
 #endif
 }
 
-/*
-* this function is equivalent to function printf from librarz stdio.h
-* but output stream is throught radio transmitter
-* before call this function is nessesary to initialize radio
-* any one formated string (call) is sended in one packet
-* Tato funkcia je pdobna k funkcii printf z kniznice stdio.h
-* Vystup je smerovany cez radiovy prenos
-* Pred volanim tejto funkcie je nutne inicializovat radio kontroler
-*/
+/** 
+   @fn     int rf_printf(const char * format , ...)
+   @brief  this function is equivalent to function printf from library stdio.h
+   @param  format : {} pointer at string to formating output string
+   @param  ... :{} additive parameters for formating string
+   @pre    radioInoit() must be called before this can be called.
+   @code    
+      radioInit();
+      int num = 10;
+      rf_printf();
+   @endcode
+   @note    output stream is trought radio interface
+            function is waiting until whole packet is transmited
+            any one formated string (call) is sended in one packet
+   @return  int number of sending chars (if == 0 error)
+**/
 unsigned char rf_printf(const char * format /*format*/, ...){
   char buff[256];
   unsigned char len;
@@ -244,10 +301,21 @@ unsigned char rf_printf(const char * format /*format*/, ...){
   return len;
 }
 
-/*
-* function receive one packet from radio
-* function will wait until packet is received
-*/
+/** 
+   @fn     char radioRecieve(void)
+   @brief  function receive one packet with radio interface
+   @pre    radioInit() must be called before this function is called.
+   @code    
+      radioInit();
+      if (radioReceive())
+        printf("packet was received and read from radio interface");
+        printf(Buffer);//Buffer is global bufer for radio interface
+      else
+        printf("packet was not received correctly before timeout");
+   @endcode
+   @note   function is also reding packet form radio interface to unsigned char Buffer[240]
+   @return  char  1 == packet received, 0 == packet was not received correctly before timout
+**/
 char radioRecieve(void){//pocka na prijatie jedneho paketu
   unsigned int timeout_timer = 0;
   
@@ -290,11 +358,14 @@ char radioRecieve(void){//pocka na prijatie jedneho paketu
   return 1;
 }
 
-/*
-* function set timer for interval 5 10 15ms aproximetly depends on number 
-* of SYNC packet 
-* after timeout is generated interrupt, to set synchronization pin
-*/
+/** 
+   @fn     void setTimeToSync(unsigned int time)
+   @brief  set general purpose timer0 for synchronization timeout
+   @param  time {0- uint range} should be (N * SYNC_INTERVAL) where N=1-3
+   @see    void GP_Tmr0_Int_Handler ()
+   @see    SYNC_INTERVAL
+   @note   timer predivider factor = 256, processor clock, periodic mode
+**/
 void setTimeToSync(unsigned int time){
   GptLd (pADI_TM0, time);
   GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_EN|TCON_RLD_EN|TCON_MOD_PERIODIC);
@@ -305,10 +376,12 @@ void setTimeToSync(unsigned int time){
 }
 
 #if THROUGHPUT_MEASURE
-/*
-* function set timer for 1s timeout
-* only for measuring purpose
-*/
+/** 
+   @fn     void troughputMeasureInit(void)
+   @brief  set general purpose timer0 to 1s interval to measure troughput
+   @see    void GP_Tmr1_Int_Handler ()
+   @note   timer predivider factor = 32768, low freq. oscillator clock, periodic mode
+**/
 void troughputMeasureInit(void){
   GptLd (pADI_TM1, 0x0); // Interval of 1s
   GptCfg(pADI_TM1, TCON_CLK_LFOSC, TCON_PRE_DIV32768, TCON_ENABLE|TCON_MOD_PERIODIC);
@@ -320,9 +393,10 @@ void troughputMeasureInit(void){
 #endif
 
 #if THROUGHPUT_MEASURE == 2
-/*
-* function sending false data packets, only for measuring purpose
-*/
+/** 
+   @fn     char transmit(void)
+   @brief  send synthetic data to master just to measure troughput
+**/
 char transmit(void){
   my_slot=1;
   char txPkt=0;
@@ -336,10 +410,14 @@ char transmit(void){
 }
 #else
 
-/*
-* function is transmiting all prepared packets throught radio link
-* all data packets are received via UART
-*/
+/** 
+   @fn     char transmit(void)
+   @brief  function is transmiting all prepared packets throught radio link
+   @note   rotate packet memory
+           all data packets are received via UART
+   @see    pktMemory
+   @return char - number of transmitted packets
+**/
 char transmit(void){
   char* pktMemoryPtr;
   unsigned char txPkt = 0;
@@ -380,10 +458,11 @@ char transmit(void){
 }
 #endif
 
-/*
-* function retransmit missing packets
-* @return : number of retransmited packets
-*/
+/** 
+   @fn     char retransmit(void)
+   @brief  function retransmit missing packets if requested
+   @return char - number of retransmited packets
+**/
 char retransmit(void){
   char pkt = 3;
   char reTxPkt[NUM_OF_PACKETS_IN_MEMORY + 5];
@@ -401,8 +480,10 @@ char retransmit(void){
   }
   return (pkt-3);
 }
-/*
-*/
+/** 
+   @fn     void SetInterruptPriority (void)
+   @brief  Initialize interrupt priority
+**/
 void SetInterruptPriority (void){
   NVIC_SetPriority(UART_IRQn,5);//receiving of packets if not constant lenght of packet
   NVIC_SetPriority(DMA_UART_RX_IRQn,6);//terminate DMA RX priority
@@ -412,9 +493,12 @@ void SetInterruptPriority (void){
   NVIC_SetPriority(EINT8_IRQn,4);//highest priority for radio interupt
 }
 
-/*
-*
-*/
+/** 
+   @fn     int main(void)
+   @brief  main function of slave program
+   @note   Program is using time multiplex to send data to master device
+   @return int 
+**/
 int main(void)
 {   
   WdtGo(T3CON_ENABLE_DIS);//stop watch-dog
@@ -427,7 +511,7 @@ int main(void)
 #if THROUGHPUT_MEASURE
   troughputMeasureInit();
 #endif
-	radioInit();//inicialize ratio conection
+	radioInit();//inicialize radio conection
   
   while (1){
     if (radioRecieve()){
@@ -454,13 +538,20 @@ int main(void)
 // GP Timer0 Interrupt handler 
 // used to set synchronization pin
 ///////////////////////////////////////////////////////////////////////////
+/** 
+    @fn      void GP_Tmr0_Int_Handler(void)
+    @brief   Interrupt handler for synchronization timing
+    @note    synchronization at falling edge 
+             handler manage also rising edge (hughe jitter)
+    @see     setTimeToSync()
+**/
 void GP_Tmr0_Int_Handler(void){
   if (GptSta(pADI_TM0)== TSTA_TMOUT) // if timout interrupt
   {
     if (SYNC_PIN_READ)
       SYNC_PIN_LOW;//negativ synchronization
     else
-    {//if high then set low and stop timer
+    {//if low then set high and stop timer
       SYNC_PIN_HIGH;//reset synchronization
       GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
       // wait for sync of TCON write. required because of use of asynchronous clock
@@ -473,6 +564,12 @@ void GP_Tmr0_Int_Handler(void){
 // GP Timer1 Interrupt handler 
 // used for measure trouthput any 1s
 ///////////////////////////////////////////////////////////////////////////
+/** 
+    @fn      void GP_Tmr1_Int_Handler (void)
+    @brief   Interrupt handler for measuring troughput
+    @note    only if THROUGHPUT_MEASURE is set in settings.h
+    @see     settings.h
+**/
 void GP_Tmr1_Int_Handler(void){
   if (GptSta(pADI_TM1)== TSTA_TMOUT) // if timout interrupt
   { 
@@ -488,6 +585,11 @@ void GP_Tmr1_Int_Handler(void){
 // UART DMA Interrupt handler for transmit
 // used for ending of DMA operation of dma_send()
 ///////////////////////////////////////////////////////////////////////////
+/** 
+    @fn      void DMA_UART_TX_Int_Handler (void)
+    @brief   terminating DMA transaction of function dma_send()
+    @see     dma_send()
+**/
 void DMA_UART_TX_Int_Handler ()
 {
   UrtDma(0,COMIEN_EDMAR);  // prevents further UART DMA requests
@@ -498,6 +600,11 @@ void DMA_UART_TX_Int_Handler ()
 // DMA UART Interrupt handler 
 // used for build packet
 ///////////////////////////////////////////////////////////////////////////
+/** 
+    @fn      void DMA_UART_RX_Int_Handler()
+    @brief   Interrupt handler terminating DMA receiving transaction if constant lenght of packet is set
+    @see     LEN_OF_RX_PKT
+**/
 void DMA_UART_RX_Int_Handler   ()
 {
   //only if constant lenght of packet
@@ -531,6 +638,13 @@ void HardFault_Handler(void){
 // used for spliting data to packets
 // function is taken from example UARTLoopback.c and modified
 ///////////////////////////////////////////////////////////////////////////
+/** 
+    @fn      void UART_Int_Handler ()
+    @brief   Interrupt handler managing store received data trought UART
+              - string mode = appedning chars untill STRING_TERMINATOR is received 
+              - binary mode = appending untill buffer is full == 240 chars
+    @see     STRING_TERMINATOR
+**/
 void UART_Int_Handler (void)
 { 	
 #if LEN_OF_RX_PKT==0
