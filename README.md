@@ -4,11 +4,11 @@ Program using time multiplex for transmiting data from optionaly number of Slave
 Debuged for ADucRF101MKxZ development kit
 
 - Author:   Peter Šoltýs
-- Version:  2.0
+- Version:  2.1B
 - Hardware: ADucRF101MKxZ
-- Date:     07.02.2016
+- Date:     25.02.2016
 - Project:  Time-multiplex-ADuc-RF101
-- Note:     v2.0 is first stable version 
+- Note:     v2.1B fixed synchronization and added binary mode
 
 
 

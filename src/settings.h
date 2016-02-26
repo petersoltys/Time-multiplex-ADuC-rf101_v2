@@ -284,3 +284,35 @@
                               
                               
                               
+/*! \mainpage ADuc-RF-101 Time multiplex
+ 
+  \section intro_sec Introduction
+ 
+	Program is using time multiplex for transmiting data from optionaly number of Slaves to Maseter device 
+	via RF-channel with checking data integrity using hardware implement CRC and retransmiting losted data packets.
+
+	Debuged for ADucRF101MKxZ development kit
+
+	- Author:   Peter Soltys
+	- Version:  2.1B
+	- Hardware: ADucRF101MKxZ
+	- Date:     07.02.2016
+	- Project:  Time-multiplex-ADuc-RF101
+  - DEV:      Keil 5.1 Evaluation
+	- Note:     v2.1B fixed synchronization and added binary mode
+
+
+
+
+	Compatible with program  UWB - Coordinate Reader Deployment from Peter Mikula
+	[uwb_coordinate_reader](https://github.com/Gresthorn/UWB_COORDINATE_READER "uwb_coordinate_reader")
+ 
+  Program is able to find online on [Github](https://github.com/petersoltys/Time-multiplex-ADuC-rf101_v2 "Github")
+  \section build_sec Build
+ 
+  \subsection step1 Step 1: Opening project in Keil 
+   
+  etc...
+ */
+                              
+                              

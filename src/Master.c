@@ -28,20 +28,7 @@
       static RIE_BOOL             bPacketTx                     = RIE_TRUE; \n
       static RIE_BOOL             bPacketRx                     = RIE_TRUE; \n
       
-  @section Disclaimer
-  THIS SOFTWARE IS PROVIDED BY BC PETER SOLTYS. ``AS IS'' AND ANY EXPRESS OR
-  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE
-  DISCLAIMED. IN NO EVENT SHALL BC PETER SOLTYS. BE LIABLE FOR ANY DIRECT,
-  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-  POSSIBILITY OF SUCH DAMAGE.
 
-  YOU ASSUME ANY AND ALL RISK FROM THE USE OF THIS CODE OR SUPPORT FILE.
-
-  IT IS THE RESPONSIBILITY OF THE PERSON INTEGRATING THIS CODE INTO AN APPLICATION
-  TO ENSURE THAT THE RESULTING APPLICATION PERFORMS AS REQUIRED AND IS SAFE.
-  <hr>
 **/
 #include "include.h"
 #include "settings.h"
@@ -57,19 +44,25 @@ unsigned char  Buffer[240];
 RIE_U8         PktLen;
 RIE_S8         RSSI;
 
-
+/** 
+   @brief  memory to store all data to send/to receive
+   @param  - level
+           - packet num
+           - packet data
+   @note    pktMemory is 2 levels deep 
+            puspose is changing in circle 
+            0 actual receiving buffer
+            1 actual sending buffer
+            for pointing are used flags : actualRxBuffer, actualTxBuffer
+            
+   @note  size of mermory is restricted because ADuc rf101 have only 16KBytes SRAM
+   @note  UART nust be much faster(tested on 128000 baud rate) than RF-link (to release memory)
+   @see   actualRxBuffer 
+   @see   actualTxBuffer
+**/
 //            [level ][ packet num.][packet data]
 char pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
-//pktMemory have 9600 Bytes if is 20 packet depth and ADuc rf101 have only 16KBytes SRAM
-//because of this restriction is nesesary for right function to be 
-//UART much faster(tested on 128000 baud rate) than RF-link
-/*
-  pktMemory is 2 levels deep 
-  puspose is changing in circle 
-  0 actual receiving buffer
-  1 actual sending buffer
-  for pointing are used flags : actualRxBuffer, actualTxBuffer
-*/
+
           // [level]
 char numOfPkt[2] = {0,0};//similar like pktMemory
                       // [level][lenght]
@@ -115,11 +108,11 @@ void DMA_UART_TX_Int_Handler (void);
    @note    speed UART_BAUD_RATE_MASTER baud
             8 bits
             one stop bit
-            output port P1.0\P1.1
+            output port P1.0/P1.1
 **/
 void uartInit(void){
   UrtLinCfg(0,UART_BAUD_RATE_MASTER,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);
-  DioCfg(pADI_GP1,0x9); // UART functionality on P1.0\P1.1
+  DioCfg(pADI_GP1,0x9); // UART functionality on P1.0/P1.1
 
   UrtIntCfg(0,COMIEN_ERBFI);// enable Rx interrupts
   NVIC_EnableIRQ(UART_IRQn);// setup to receive data using interrupts

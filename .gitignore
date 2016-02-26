@@ -1,3 +1,15 @@
+# Document files
+documentation/* 
+!documentation/Documentation_SK.pdf 
+
+!documentation/doxygen/ 
+
+
+!documentation/doxygen/latex/ 
+documentation/doxygen/latex/*
+!documentation/doxygen/latex/refman.pdf
+
+
 # Keil files
 *.i
 *.axf
@@ -28,8 +40,7 @@
 JLinkLog.txt
 JLinkLog
 
-# Document files
-doxygen
+
 
 # Listing an OBJECT files
 obj
