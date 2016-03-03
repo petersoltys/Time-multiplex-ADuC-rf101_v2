@@ -482,24 +482,24 @@
           <GroupName>Common</GroupName>
           <Files>
             <File>
-              <FileName>startup_ADuCRF101.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\Common\RealView\startup_ADuCRF101.s</FilePath>
-            </File>
-            <File>
               <FileName>Retarget.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\RealView\Retarget.c</FilePath>
+              <FilePath>.\src\include\Common\RealView\Retarget.c</FilePath>
             </File>
             <File>
               <FileName>radioeng.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\radioeng.c</FilePath>
+              <FilePath>.\src\include\Common\radioeng.c</FilePath>
             </File>
             <File>
               <FileName>system_ADuCRF101.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\system_ADuCRF101.c</FilePath>
+              <FilePath>.\src\include\Common\system_ADuCRF101.c</FilePath>
+            </File>
+            <File>
+              <FileName>startup_ADuCRF101.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\src\include\Common\IAR\startup_ADuCRF101.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -509,62 +509,77 @@
             <File>
               <FileName>AdcLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\AdcLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>WutLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\WutLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\AdcLib.c</FilePath>
             </File>
             <File>
               <FileName>ClkLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\ClkLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\ClkLib.c</FilePath>
             </File>
             <File>
               <FileName>DioLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\DioLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>GptLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\GptLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>IntLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\IntLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>PwrLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\PwrLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>RstLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\RstLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>SpiLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\SpiLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>UrtLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\UrtLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>WdtLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\WdtLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\DioLib.c</FilePath>
             </File>
             <File>
               <FileName>DmaLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\DmaLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\DmaLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>FeeLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\FeeLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>GptLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\GptLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>I2cLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\I2cLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>IntLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\IntLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>PwmLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\PwmLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>PwrLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\PwrLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>RstLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\RstLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>SpiLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\SpiLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>UrtLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\UrtLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>WdtLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\WdtLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>WutLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\WutLib.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1046,24 +1061,24 @@
           <GroupName>Common</GroupName>
           <Files>
             <File>
-              <FileName>startup_ADuCRF101.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\..\Common\RealView\startup_ADuCRF101.s</FilePath>
-            </File>
-            <File>
               <FileName>Retarget.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\RealView\Retarget.c</FilePath>
+              <FilePath>.\src\include\Common\RealView\Retarget.c</FilePath>
             </File>
             <File>
               <FileName>radioeng.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\radioeng.c</FilePath>
+              <FilePath>.\src\include\Common\radioeng.c</FilePath>
             </File>
             <File>
               <FileName>system_ADuCRF101.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\Common\system_ADuCRF101.c</FilePath>
+              <FilePath>.\src\include\Common\system_ADuCRF101.c</FilePath>
+            </File>
+            <File>
+              <FileName>startup_ADuCRF101.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\src\include\Common\IAR\startup_ADuCRF101.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -1137,62 +1152,77 @@
             <File>
               <FileName>AdcLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\AdcLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>WutLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\WutLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\AdcLib.c</FilePath>
             </File>
             <File>
               <FileName>ClkLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\ClkLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\ClkLib.c</FilePath>
             </File>
             <File>
               <FileName>DioLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\DioLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>GptLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\GptLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>IntLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\IntLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>PwrLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\PwrLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>RstLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\RstLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>SpiLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\SpiLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>UrtLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\UrtLib.c</FilePath>
-            </File>
-            <File>
-              <FileName>WdtLib.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\DasLib\WdtLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\DioLib.c</FilePath>
             </File>
             <File>
               <FileName>DmaLib.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\DasLib\DmaLib.c</FilePath>
+              <FilePath>.\src\include\DasLib\DmaLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>FeeLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\FeeLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>GptLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\GptLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>I2cLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\I2cLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>IntLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\IntLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>PwmLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\PwmLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>PwrLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\PwrLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>RstLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\RstLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>SpiLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\SpiLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>UrtLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\UrtLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>WdtLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\WdtLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>WutLib.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\DasLib\WutLib.c</FilePath>
             </File>
           </Files>
         </Group>
