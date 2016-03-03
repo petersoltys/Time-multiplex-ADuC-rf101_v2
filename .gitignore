@@ -1,10 +1,18 @@
 # Document files
+# exclude folder but search in
 documentation/* 
+# include pdf
 !documentation/Documentation_SK.pdf 
 
+# search in file
 !documentation/doxygen/ 
+# exclude files
+documentation/doxygen/* 
 
+# include html page
+#!documentation/doxygen/html/ 
 
+# include latex pdf
 !documentation/doxygen/latex/ 
 documentation/doxygen/latex/*
 !documentation/doxygen/latex/refman.pdf

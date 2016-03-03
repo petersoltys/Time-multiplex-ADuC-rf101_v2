@@ -371,7 +371,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\Common;..\..\DasLib;$K\ARM\CMSIS\Include</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -935,7 +935,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\Common;..\..\DasLib; $K\ARM\CMSIS\Include</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
