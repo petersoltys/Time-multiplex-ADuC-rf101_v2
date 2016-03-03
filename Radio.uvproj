@@ -499,7 +499,7 @@
             <File>
               <FileName>startup_ADuCRF101.s</FileName>
               <FileType>2</FileType>
-              <FilePath>.\src\include\Common\IAR\startup_ADuCRF101.s</FilePath>
+              <FilePath>.\src\include\Common\RealView\startup_ADuCRF101.s</FilePath>
             </File>
           </Files>
         </Group>
@@ -1078,7 +1078,7 @@
             <File>
               <FileName>startup_ADuCRF101.s</FileName>
               <FileType>2</FileType>
-              <FilePath>.\src\include\Common\IAR\startup_ADuCRF101.s</FilePath>
+              <FilePath>.\src\include\Common\RealView\startup_ADuCRF101.s</FilePath>
             </File>
           </Files>
         </Group>
