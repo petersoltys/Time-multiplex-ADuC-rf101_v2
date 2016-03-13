@@ -134,7 +134,7 @@
          - 1 if Binary mode
          - 0 if String mode.
  **/
-#define BINARY_MODE 0
+#define BINARY_MODE 1
 
  /**
     @brief  char witch terminate all received packets     
@@ -172,7 +172,7 @@
           - 0 if variable lenght of packets
           - 1-240 constant lenght of packets
  **/
-#define LEN_OF_RX_PKT 0 
+#define LEN_OF_RX_PKT 10
 
  /**
     @brief  offset in numbers of head
@@ -192,11 +192,11 @@
 
  /**
     @brief  max time(number of increments) to response of requested devide
-    @note   interval witch is counted until packet is received
+    @note   interval witch is counted until packet is received (empiric 5500 at max lenght packet)
     @see    radioRecieve()
-    @param  time :{50000}
+    @param  time :{6000}
  **/
-#define T_TIMEOUT 50000 //max time(number of increments) to response of slave
+#define T_TIMEOUT 7000 //max time(number of increments) to response of slave 
 
 /*******************************************************************************
 * Master interface settings

@@ -81,7 +81,7 @@ char actualRxBuffer=0;
 char actualTxBuffer=1;
 
 char rxUARTbuffer[255];
-char* rxPktPtr ;
+unsigned char* rxPktPtr ;
 int rxUARTcount = 0;
 /////////flags/////////////////////
 char TX_flag=0, RX_flag=0, terminate_flag=0, buffer_change_flag=0 ;
@@ -109,7 +109,6 @@ int rxThroughput;
             output port P1.0/P1.1
 **/
 void uart_init(void){
-  rxPktPtr =&pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT+1];//pinting beyound packet head
   
 	UrtLinCfg(0,UART_BAUD_RATE_SLAVE,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);//configure uart
   DioCfg(pADI_GP1,0x9); // UART functionality on P1.0/P1.1
@@ -131,7 +130,7 @@ void uart_init(void){
 #if LEN_OF_RX_PKT
 //enable RX DMA chanel for receiving packets forom UART
   DmaChanSetup(UARTRX_C,ENABLE,ENABLE);// Enable DMA channel  
-  DmaTransferSetup(UARTRX_C,LEN_OF_RX_PKT,rxPktPtr);
+  DmaTransferSetup(UARTRX_C,LEN_OF_RX_PKT,rxUARTbuffer);
   UrtDma(0,COMIEN_EDMAR);//start rx 
 #endif
 }
@@ -451,7 +450,7 @@ char transmit(void){
 
     //dma_printf(pktMemoryPtr);
     #if BINARY_MODE
-    radioSend(pktMemoryPtr,(lenghtOfPkt[actualTxBuffer][txPkt]+3));//send packet
+    radioSend(pktMemoryPtr,(lenghtOfPkt[actualTxBuffer][txPkt]+HEAD_LENGHT));//send packet
     #else
     rf_printf(pktMemoryPtr);//send packet
     #endif
@@ -614,20 +613,42 @@ void DMA_UART_RX_Int_Handler   ()
   //only if constant lenght of packet
 #if LEN_OF_RX_PKT
 
-  UrtDma(0,COMIEN_EDMAT); // prevents additional byte to restart DMA transfer
+  
+  UrtDma(0,0); // prevents additional byte to restart DMA transfer
+  #if BINARY_MODE
+  rxUARTcount += LEN_OF_RX_PKT;//count received data
+  
+  //check place in memory
+  if (rxUARTcount <= PACKET_MEMORY_DEPTH-HEAD_LENGHT-LEN_OF_RX_PKT){
+    rxPktPtr = &rxUARTbuffer[rxUARTcount];
+  }
+  else{
+    rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
+    
+    memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);//copy buffer to mmory
+    lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;//save number of received bytes
+    rxUARTcount = 0;
+    
+    rxPktPtr = rxUARTbuffer;
+    //incremet number of received packets
+    if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
+      numOfPkt[actualRxBuffer]++;
+  }
+  #else //normal mode (does not append data to packets)
+  //pinter to point at new place in memory pointing beyound packet head
+  rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
+  memcpy(rxPktPtr,rxUARTbuffer,LEN_OF_RX_PKT);//copy buffer to mmory
+  rxPktPtr = rxUARTbuffer;
   
   //if is buffered more than 10 packets dont increment and overwrite last packet
   if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
     numOfPkt[actualRxBuffer]++;
-  
-  //ste pinter to point at new place in memory pointing beyound packet head
-  rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
+  #endif
   
   //enable RX DMA chanel for receiving next packets forom UART
   DmaChanSetup(UARTRX_C,ENABLE,ENABLE);// Enable DMA channel  
   DmaTransferSetup(UARTRX_C,LEN_OF_RX_PKT,rxPktPtr);
   UrtDma(0,COMIEN_EDMAR);
-
 #endif
 }
 ///////////////////////////////////////////////////////////////////////////
@@ -666,7 +687,7 @@ void UART_Int_Handler (void)
     rxUARTcount++;
     
     #if BINARY_MODE
-    if (rxUARTcount >= (PACKET_MEMORY_DEPTH-3)){//packte full
+    if (rxUARTcount >= (PACKET_MEMORY_DEPTH-HEAD_LENGHT)){//packt full
       if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){//copy to memory
         rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];//pinting beyound packet head
         memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);
