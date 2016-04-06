@@ -61,7 +61,7 @@
          - 862000000Hz to 928000000Hz.
    @note 433.92 Mhz (EU) free frequency
 **/
-#define RADIO_FREQENCY     433920000//**433.92 Mhz |EU}(Bakalarka Oto Petura)
+#define RADIO_FREQENCY     890000000//433920000//**433.92 Mhz |EU}(Bakalarka Oto Petura)
 
 /**
    @brief  PA Type for Radio Transmission. 
@@ -205,7 +205,7 @@
  /**
     @brief  UART baudrate with is using master
  **/
-#define UART_BAUD_RATE_MASTER 128000
+#define UART_BAUD_RATE_MASTER 256000
 
  /**
     @brief  string defining format of "ID slot" packet
@@ -245,7 +245,7 @@
  /** @brief  number of actual slave
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define SLAVE_ID 2                //Slave == 1..4 number
+#define SLAVE_ID 2               //Slave == 1..4 number
 
 
 //head definition
@@ -271,18 +271,45 @@
 #define RX_STREAM 0 /*!< @brief stream of redeived data to UART**/
 #define TX_STREAM 0 /*!< @brief stream of transmited data to UART**/
 #define SEND_HEAD 0 /*!< @brief send also heads of packets on UART**/
-
 /**
   @brief measured data troughput
   @param {0-3}
           - if ==0 no measuring
           - if ==1 measure throughput of received data from UART
           - if ==2 measure maximum throughput with shyntetic data
+  @code
+  //oficial implementation of random function from CodeGuru
+      void __cdecl srand (unsigned int seed)
+    {
+        #ifdef _MT
+            _getptd()->_holdrand = (unsigned long)seed;
+        #else // _MT 
+            holdrand = (long)seed;
+        #endif // _MT 
+    }
+
+    int __cdecl rand (void)
+    {
+       #ifdef _MT
+        _ptiddata ptd = _getptd();
+        return( ((ptd->_holdrand = ptd->_holdrand * 214013L + 2531011L) >> 16) &
+        0x7fff );
+       #else // _MT 
+        return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
+       #endif // _MT 
+    }
   @note measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
 **/
 #define THROUGHPUT_MEASURE 0  
-                              
-                              
+/**
+  @brief settings of used implementation of random function
+  @param {0-1}
+          - if ==0 better implemetntation from CodeGuru
+          - if ==1 is used historical random function (very weak quality)
+  @note measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
+**/
+#define WEEAK_RANDOM_FUNCTION 0                               
+#define RAND_SEED 500 /*!< @brief initial number for PRNG */
                               
 /*! \mainpage ADuc-RF-101 Time multiplex
  

@@ -1,5 +1,5 @@
 master_slave_flip = 1;
-packet_burst = 330;
+packet_burst = 920;
 COM1='COM3';
 COM2='COM4';
 
@@ -20,20 +20,25 @@ else
     COM = COM1;
 end 
 
-
+slave2 = serial('COM7','BaudRate',slave_baudrate);
+% slave2 = serial('COM7','BaudRate',slave_baudrate);
 try
     fopen(slave)
+    fopen(slave2)
     disp(COM);
-%     for j = 1 : 5
+    for j = 1 : 5
         for i = 1 :packet_burst
-            fprintf(slave,'msg = %.3i',i);%matlab is automatically adding "\n"
+            fprintf(slave ,'msg0= %.3i ',i);%matlab is automatically adding "\n"
+            fprintf(slave2,'msg1= %.3i ',i);%matlab is automatically adding "\n"
         end ;
-%         pause(0.5);
-%     end
+        pause(1);
+    end
     fclose(slave);
+    fclose(slave2);
 
 catch
     msg = ['nepodarilo sa otvorit ', COM, ' port.'];
     disp(msg);
     fclose(slave);
+    fclose(slave2);
 end

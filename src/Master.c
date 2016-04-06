@@ -502,6 +502,8 @@ void ifMissPktGet(void)
 **/
 void flushBufferedPackets(void){
   
+  //wait untill all packets are flushed
+  while(flush_flag);
   //switch buffer 
   actualRxBuffer++;
   actualTxBuffer++;

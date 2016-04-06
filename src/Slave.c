@@ -33,6 +33,7 @@
 
 
 **/
+
 #include "include.h"
 #include "settings.h"
 #include <stdarg.h>
@@ -76,6 +77,21 @@ char numOfPkt[2] = {0,0};//similar like pktMemory
                       // [level][lenght]
 unsigned char lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] = {0,0};//similar like pktMemory
 
+char PRNG_data = 0;//flag to set random data generation
+
+#pragma pack(1)
+struct rand_pkt {
+  char  Slave;
+  char  slave_id;
+  unsigned long  randomPktNum;
+  #if WEEAK_RANDOM_FUNCTION == 1
+  static unsigned long next;//variable for PRNG
+  #else
+  long next;//variable for PRNG
+  #endif
+  int   rnadom;
+} random_packet;  
+
 
 char actualRxBuffer=0;
 char actualTxBuffer=1;
@@ -84,7 +100,7 @@ char rxUARTbuffer[255];
 unsigned char* rxPktPtr ;
 int rxUARTcount = 0;
 /////////flags/////////////////////
-char TX_flag=0, RX_flag=0, terminate_flag=0, buffer_change_flag=0 ;
+char TX_flag=0, RX_flag=0, terminate_flag=0, buffer_change_flag=0, memory_full_flag = 0 ;
 char my_slot = 0;
 
 void UART_Int_Handler (void);
@@ -188,7 +204,7 @@ void radioInit(void){
    @note    after end of transmision is called DMA_UART_TX_Int_Handler (void)
    @see DMA_UART_TX_Int_Handler
 **/
-void  dmaSend(unsigned char* buff, int len){
+void  dmaSend(void* buff, int len){
     //DMA UART stream
     DmaChanSetup(UARTTX_C,ENABLE,ENABLE);// Enable DMA channel  
     DmaTransferSetup(UARTTX_C,len,buff);
@@ -457,6 +473,7 @@ char transmit(void){
     
     txPkt++;
   }
+  memory_full_flag = 0;
   return txPkt;//return number of transmited packets
 }
 #endif
@@ -495,6 +512,92 @@ void SetInterruptPriority (void){
   NVIC_SetPriority(TIMER0_IRQn,8);//terminate transmiting higher prioritz
   NVIC_SetPriority(EINT8_IRQn,4);//highest priority for radio interupt
 }
+/** 
+   @fn     char button_pushed(void)
+   @brief  checking if boot button is pushed
+   @note   IO port must be initialized
+   @return 1 = button pushed, 0 = button is not pushed
+**/
+char button_pushed(void){
+  if(DioRd(pADI_GP0)&0x40)//boot button P0.6 
+    return 0;
+  else
+    return 1;
+}
+/** 
+   @fn     void srandc(unsigned int seed)
+   @brief  function is setting initial value of PRNG
+   @see    randc(void)
+**/
+void srandc(unsigned int seed)
+{
+  #if WEEAK_RANDOM_FUNCTION == 1
+  random_packet.next = seed;
+  #else
+  random_packet.next = (long)seed;
+  #endif
+}
+/** 
+   @fn     int randc(void)
+   @brief  PRNG function of linear kongurent generator
+   @note   before first fun should be initialized seed value
+   @note   PRNG values can change by macro WEEAK_RANDOM_FUNCTION
+   @see    WEEAK_RANDOM_FUNCTION
+   @see    srandc()
+   @return int - rnadom number
+**/
+int randc(void) // RAND_MAX assumed to be 32767
+{
+  #if WEEAK_RANDOM_FUNCTION == 1
+  //official ANSI implementation
+    random_packet.next = random_packet.next * 1103515245 + 12345;
+    return (unsigned int)(random_packet.next/65536) % 32768;
+  #else
+  //official random implementation for C from CodeGuru forum
+    return(((random_packet.next = random_packet.next * 214013L + 2531011L) >> 16) & 0x7fff);
+  #endif
+}
+
+
+
+/** 
+   @fn     void main(void)
+   @brief  function is filling memory with PRNG data to verify stability of design
+   @note   function is turn off DMA interrupt of UART
+**/
+void fill_memory(void){
+  #define PRNG_PKT_LEN 12 
+  char* pktptr;
+  int len = 0,i = 1,j = 0;
+  NVIC_DisableIRQ ( DMA_UART_RX_IRQn );// Disable DMA UART RX interrupt
+  
+  for (i = 0; i < NUM_OF_PACKETS_IN_MEMORY; i++){
+    pktptr = &pktMemory[actualRxBuffer][i][0];
+    len = 0;
+    while(len < PACKET_MEMORY_DEPTH-HEAD_LENGHT-PRNG_PKT_LEN ){
+      random_packet.randomPktNum ++;
+      random_packet.rnadom = randc();
+      memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
+      len = len + PRNG_PKT_LEN;
+    }
+    lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = len;
+    numOfPkt[actualRxBuffer]++;
+  }  
+  memory_full_flag = 1;
+  NVIC_EnableIRQ ( DMA_UART_RX_IRQn );// Enable DMA UART RX interrupt
+}
+/** 
+   @fn     void random_init(void)
+   @brief  initialize all nesessary values for PRNG
+**/
+void random_init(void){
+  random_packet.Slave='S';
+  random_packet.slave_id = SLAVE_ID;
+  random_packet.randomPktNum = 0;
+  random_packet.next = 0;
+  random_packet.rnadom = 0;
+  srandc(RAND_SEED);
+}
 
 /** 
    @fn     int main(void)
@@ -504,18 +607,25 @@ void SetInterruptPriority (void){
 **/
 int main(void)
 {   
+  int rnd;
+  double x;
   WdtGo(T3CON_ENABLE_DIS);//stop watch-dog
 
   //initialize all interfaces
   SetInterruptPriority();
 	uart_init();
 	led_init();
+  random_init();
+  
+  DioCfg(pADI_GP4,0x10);
+  DioOen(pADI_GP4, BIT2); 
+  
   LED_OFF;
 #if THROUGHPUT_MEASURE
   troughputMeasureInit();
 #endif
 	radioInit();//inicialize radio conection
-  
+    
   while (1){
     if (radioRecieve()){
       
@@ -534,7 +644,17 @@ int main(void)
       //check if sync packet
       if (0 == memcmp(Buffer,"SYNC",4))
         setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
+      
     }
+    
+    if (button_pushed()){//initialize PRNG
+      PRNG_data = 1;
+      srandc(RAND_SEED);
+    }
+    //fill up the memory
+    if ((PRNG_data == 1) && memory_full_flag == 0 )
+      fill_memory();
+
   }
 }
 ///////////////////////////////////////////////////////////////////////////
@@ -633,6 +753,8 @@ void DMA_UART_RX_Int_Handler   ()
     //incremet number of received packets
     if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
       numOfPkt[actualRxBuffer]++;
+    else
+      memory_full_flag = 1;
   }
   #else //normal mode (does not append data to packets)
   //pinter to point at new place in memory pointing beyound packet head
@@ -643,6 +765,8 @@ void DMA_UART_RX_Int_Handler   ()
   //if is buffered more than 10 packets dont increment and overwrite last packet
   if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
     numOfPkt[actualRxBuffer]++;
+  else
+    memory_full_flag = 1;
   #endif
   
   //enable RX DMA chanel for receiving next packets forom UART
