@@ -4,9 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version  V2.1B
-   @author   Peter Soltys
-   @date     february 2016  
+   @version     V2.1B
+   @supervisor  doc. Ing. Milos Drutarovsky Phd.
+   @author      Bc. Peter Soltys
+   @date        14.04.2016 (DD.MM.YYYY)
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -32,6 +33,16 @@
   <hr>
 
 **/
+#ifndef __SETTINGS_H
+#define __SETTINGS_H
+
+/*******************************************************************************
+* Hardware defined macros
+*/
+
+/** @brief size of RAM memory for packet in radio interface **/
+#define PACKETRAM_LEN          240    
+
 
 /*******************************************************************************
 * Radio configuration macros
@@ -59,9 +70,11 @@
       - This must be within the available bands of the radio: 
          - 431000000Hz to 464000000Hz and 
          - 862000000Hz to 928000000Hz.
-   @note 433.92 Mhz (EU) free frequency
+   @note 433.92 Mhz (EU) free frequency (Bc work Oto Petura)
+         890 Mhz frequency of filter at used radio modules 
+         
 **/
-#define RADIO_FREQENCY     890000000//433920000//**433.92 Mhz |EU}(Bakalarka Oto Petura)
+#define RADIO_FREQENCY     890000000
 
 /**
    @brief  PA Type for Radio Transmission. 
@@ -143,15 +156,20 @@
 #define STRING_TERMINATOR '$'
 
  /**
-    @brief  maximal memory (packet) depth
-    @note   macro set greatness of packet memory
+    @brief  set maximal memory (packet) depth (size of one packet)
+    @note   macro set size of packet memory
+    @note   radio interface memory is 240 bytes
+    @see    NUM_OF_PACKETS_IN_MEMORY
     @param  memory deepth :{0 , 240}
  **/
 #define PACKET_MEMORY_DEPTH 240 
 
  /**
-    @brief  maximal number of packets to send/receive
-    @note   macro set greatness of packet memory
+    @brief  maximal number of packets (stored in memory) to send/receive 
+    @note   macro set size of packet memory
+    @note   maximum is restricted by avaliable memory (16kB SRAM)
+            2*PACKET_MEMORY_DEPTH*NUM_OF_PACKETS_IN_MEMORY < 16kB
+    @see    PACKET_MEMORY_DEPTH
     @param  number of packets :{1 , 20}
  **/
 #define NUM_OF_PACKETS_IN_MEMORY 20
@@ -162,7 +180,7 @@
             macro set greatness of packet memory
     @param  number of slave devices :{1 , 10} 4
  **/
-#define NUM_OF_SLAVE 4 //number of slave devices
+#define NUM_OF_SLAVE 4  //number of slave devices
 
  /**
     @brief  lenght of received packets from UART
@@ -175,28 +193,20 @@
 #define LEN_OF_RX_PKT 10
 
  /**
-    @brief  offset in numbers of head
-    @note   offset in numbers of head, because 0x00 is defined like 
-            end of string => working with packets as with strings
-    @param  char :{'0'}
- **/
-#define CHAR_OFFSET '0' 
-
- /**
     @brief  time interval to interrupt for synchronization
     @note   time to interrupt = (1/40 000 000) * 256 * SYNC_INTERVAL [s]
-            200 = 1.28 ms //up to 255 (unsigned char)
+            200 = 1.28 ms       //up to 255 (uint8_t)
     @param  count number :{200}
  **/
 #define SYNC_INTERVAL 200 
 
  /**
-    @brief  max time(number of increments) to response of requested devide
+    @brief  max time(number of increments) to response of requested device
     @note   interval witch is counted until packet is received (empiric 5500 at max lenght packet)
     @see    radioRecieve()
-    @param  time :{6000}
+    @param  time :{7000 ~ 0.8ms}
  **/
-#define T_TIMEOUT 7000 //max time(number of increments) to response of slave 
+#define T_TIMEOUT 7000     //max time(number of increments) to response of slave 
 
 /*******************************************************************************
 * Master interface settings
@@ -216,7 +226,7 @@
     @brief  number of retransmission trying until slave is marked as not responding
     @param  retransmission attempts :{3}
  **/
-#define RETRANSMISION 3 //number of retransmiting comand if no response
+#define RETRANSMISION 3     //number of retransmiting comand if no response
 
 /*******************************************************************************
 * Slave interface settings
@@ -224,8 +234,8 @@
 
  /**
     @brief  UART baudrate with is using master
-    @note   Baudrate is ste to 9600 because of compatibility with 
-            "UWB - Coordinate Reader Deployment" from Peter Mikula
+    @note   For compatibility with "UWB - Coordinate Reader Deployment" from 
+            Peter Mikula baudrate should be 9600
  **/
 #define UART_BAUD_RATE_SLAVE 128000
 
@@ -233,19 +243,19 @@
  /** @brief  format of slot identificator  
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define TIME_SLOT_ID_SLAVE "2slot"//number in string is Slave == 1..4 number
+#define TIME_SLOT_ID_SLAVE "2slot"    //number in string is Slave == 1..4 number
  /** @brief  format of zero packet
      @param slave number{1 - NUM_OF_SLAVE} first number
  **/
-#define ZERO_PACKET "200"         //first number in string is Slave == 1..4 number
+#define ZERO_PACKET "200"             //first number in string is Slave == 1..4 number
  /** @brief  format of retransmision packet
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define RETRANSMISION_ID "2RE"    //number in string is Slave == 1..4 number
+#define RETRANSMISION_ID "2RE"        //number in string is Slave == 1..4 number
  /** @brief  number of actual slave
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define SLAVE_ID 2               //Slave == 1..4 number
+#define SLAVE_ID 2                    //Slave == 1..4 number
 
 
 //head definition
@@ -261,19 +271,19 @@
 //synchronization pin settings
 #define SYNC_PIN_HIGH DioSet(pADI_GP4,BIT2)
 #define SYNC_PIN_LOW  DioClr(pADI_GP4,BIT2)
-#define SYNC_PIN_READ DioRd(pADI_GP4)&0x04//state of sync pin
+#define SYNC_PIN_READ DioRd(pADI_GP4)&0x04    //state of sync pin
 
 /*******************************************************************************
 * debug macros
 */
-#define SIMULATE_RETX 0 /*!< @brief sending retransmitin message to test */
-#define DEBUG_MESAGES 0 /*!< @brief stream of mesages to UART */
-#define RX_STREAM 0 /*!< @brief stream of redeived data to UART**/
-#define TX_STREAM 0 /*!< @brief stream of transmited data to UART**/
-#define SEND_HEAD 0 /*!< @brief send also heads of packets on UART**/
+#define SIMULATE_RETX 0   /*!< @brief sending retransmitin message to test */
+#define DEBUG_MESAGES 0   /*!< @brief stream of mesages to UART */
+#define RX_STREAM 0       /*!< @brief stream of redeived data to UART**/
+#define TX_STREAM 0       /*!< @brief stream of transmited data to UART**/
+#define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/
 /**
   @brief measured data troughput
-  @param {0-3}
+  @param {0-2}
           - if ==0 no measuring
           - if ==1 measure throughput of received data from UART
           - if ==2 measure maximum throughput with shyntetic data
@@ -281,22 +291,12 @@
   //oficial implementation of random function from CodeGuru
       void __cdecl srand (unsigned int seed)
     {
-        #ifdef _MT
-            _getptd()->_holdrand = (unsigned long)seed;
-        #else // _MT 
             holdrand = (long)seed;
-        #endif // _MT 
     }
 
     int __cdecl rand (void)
     {
-       #ifdef _MT
-        _ptiddata ptd = _getptd();
-        return( ((ptd->_holdrand = ptd->_holdrand * 214013L + 2531011L) >> 16) &
-        0x7fff );
-       #else // _MT 
         return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
-       #endif // _MT 
     }
   @note measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
 **/
@@ -310,7 +310,10 @@
 **/
 #define WEEAK_RANDOM_FUNCTION 0                               
 #define RAND_SEED 500 /*!< @brief initial number for PRNG */
-                              
+          
+
+#endif    //#ifndef __SETTINGS_H
+
 /*! \mainpage ADuc-RF-101 Time multiplex
  
   \section intro_sec Introduction
@@ -323,7 +326,7 @@
 	- Author:   Peter Soltys
 	- Version:  2.1B
 	- Hardware: ADucRF101MKxZ
-	- Date:     07.02.2016
+	- Date:     14.04.2016 (DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
@@ -342,4 +345,4 @@
   etc...
  */
                               
-                              
+

@@ -8,9 +8,10 @@
 
              
 
-   @version  V2.1B
-   @author   Peter Soltys
-   @date     febtuary 2016  
+   @version     V2.1B
+   @supervisor  doc. Ing. Milos Drutarovsky Phd.
+   @author      Bc. Peter Soltys
+   @date        14.04.2016 (DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -30,17 +31,19 @@
       
 
 **/
-#include "include.h"
-#include "settings.h"
 #include <stdarg.h>
+#include "library.h"
+#include "settings.h"
 
-#define LED_OFF DioSet(pADI_GP4,BIT2)//led off
-#define LED_ON  DioClr(pADI_GP4,BIT2)//led on
+#define CHAR_OFFSET '0' 
+
+#define LED_OFF DioSet(pADI_GP4,BIT2)   //led off
+#define LED_ON  DioClr(pADI_GP4,BIT2)   //led on
 
 
 
 RIE_Responses  RIE_Response = RIE_Success;
-unsigned char  Buffer[240];
+uint8_t  Buffer[PACKETRAM_LEN];
 RIE_U8         PktLen;
 RIE_S8         RSSI;
 
@@ -61,35 +64,35 @@ RIE_S8         RSSI;
    @see   actualTxBuffer
 **/
 //            [level ][ packet num.][packet data]
-char pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
+uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
 
           // [level]
-char numOfPkt[2] = {0,0};//similar like pktMemory
+char numOfPkt[2] = {0,0};   //similar like pktMemory
                       // [level][lenght]
-unsigned char lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] = {0,0};//similar like pktMemory
+uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] ;   //similar like pktMemory
 
-unsigned char actualPacket;
+uint8_t actualPacket;
 
 signed char actualRxBuffer=0,actualTxBuffer=1;
 
-char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];//buffer with last radio dommand
-char dmaTxBuffer[255];//buffer for DMA TX UART channel
+//char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
+uint8_t dmaTxBuffer[255];    //buffer for DMA TX UART channel
 #define UART_BUFFER_DEEP 50
-char rxBuffer[UART_BUFFER_DEEP];//buffer for RX UART channel - only for directives
+uint8_t rxBuffer[UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
 
-unsigned char slave_ID = 1;//Slave ID
-signed char send=0;
+uint8_t slave_ID = 1;   //Slave ID
+signed char send=FALSE;
 //signed char nextRxPkt=0;
 
-signed char TX_flag=0,RX_flag=0, flush_flag=0;
-signed char sync_flag = 0;//flag starting sending synchronization packet
-signed char sync_wait = 0;
-signed char firstRxPkt = 0;
-unsigned char rxUARTcount=0;
+signed char TX_flag=FALSE,RX_flag=FALSE, flush_flag=FALSE;
+signed char sync_flag = FALSE;    //flag starting sending synchronization packet
+signed char sync_wait = FALSE;
+signed char firstRxPkt = FALSE;
+uint8_t rxUARTcount=0;
 
 //variables for DMA_UART_TX_Int_Handler
-signed char dmaTxSlv=0,dmaTxPkt=0,dmaTx_flag=0;
-char* dmaTxPtr;
+signed char dmaTxSlv=0,dmaTxPkt=0,dmaTx_flag=FALSE;
+uint8_t* dmaTxPtr;
 
 #if THROUGHPUT_MEASURE
 int rxThroughput;
@@ -112,14 +115,14 @@ void DMA_UART_TX_Int_Handler (void);
 **/
 void uartInit(void){
   UrtLinCfg(0,UART_BAUD_RATE_MASTER,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);
-  DioCfg(pADI_GP1,0x9); // UART functionality on P1.0/P1.1
+  DioCfg(pADI_GP1,0x9);         // UART functionality on P1.0/P1.1
 
-  UrtIntCfg(0,COMIEN_ERBFI);// enable Rx interrupts
-  NVIC_EnableIRQ(UART_IRQn);// setup to receive data using interrupts
+  UrtIntCfg(0,COMIEN_ERBFI);    // enable Rx interrupts
+  NVIC_EnableIRQ(UART_IRQn);    // setup to receive data using interrupts
   
-  DmaInit();// Create DMA descriptor
-  DmaTransferSetup(UARTTX_C,  20,   Buffer);
-  NVIC_EnableIRQ ( DMA_UART_TX_IRQn );// Enable DMA UART TX interrupt
+  DmaInit();                    // Create DMA descriptor
+  //DmaTransferSetup(UARTTX_C,  20,   Buffer);
+  NVIC_EnableIRQ ( DMA_UART_TX_IRQn );    // Enable DMA UART TX interrupt
 }
 
 /**
@@ -138,11 +141,11 @@ void ledInit(void){
    @note   timer predivider factor = 256, processor clock, periodic mode
 **/
 void setSynnicTimer(void){
-  GptLd (pADI_TM0, SYNC_INTERVAL); // Interval of 2ms
+  GptLd (pADI_TM0, SYNC_INTERVAL);        // Interval of 2ms
   GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE|TCON_MOD_PERIODIC);
-  while (GptSta(pADI_TM0)& TSTA_CON); // wait for sync of TCON write. required because of use of asynchronous clock
+  while (GptSta(pADI_TM0)& TSTA_CON);     // wait for sync of TCON write. required because of use of asynchronous clock
   GptClrInt(pADI_TM0,TCLRI_TMOUT);
-  while (GptSta(pADI_TM0)& TSTA_CLRI); // wait for sync of TCLRI write. required because of use of asynchronous clock
+  while (GptSta(pADI_TM0)& TSTA_CLRI);    // wait for sync of TCLRI write. required because of use of asynchronous clock
   NVIC_EnableIRQ(TIMER0_IRQn);
 }
 
@@ -177,7 +180,7 @@ void radioInit(void){
 }
 
 /** 
-   @fn     void  dmaSend(unsigned char* buff, int len)
+   @fn     void  dmaSend(void* buff, int len)
    @brief  send one packet on UART with DMA controller
    @param  buff :{} pointer to data to send
    @param  len :{int range} number of bytes to send
@@ -190,15 +193,15 @@ void radioInit(void){
    @note    after end of transmision is called DMA_UART_TX_Int_Handler (void)
    @see DMA_UART_TX_Int_Handler
 **/
-void  dmaSend(unsigned char* buff, int len){
+void  dmaSend(void* buff, int len){
   //DMA UART stream
   DmaInit();
   DmaTransferSetup(UARTTX_C,len,buff);
-  DmaChanSetup(UARTTX_C,ENABLE,ENABLE);// Enable DMA channel  
+  DmaChanSetup(UARTTX_C,ENABLE,ENABLE);   // Enable DMA channel  
   UrtDma(0,COMIEN_EDMAT);
 }
 /** 
-   @fn     int dma_printf(const char * format , ...)
+   @fn     uint16_t dma_printf(const char * format , ...)
    @brief  this function is equivalent to function printf from library stdio.h
    @param  format : {} pointer at string to formating output string
    @param  ... :{} additive parameters for formating string
@@ -211,15 +214,15 @@ void  dmaSend(unsigned char* buff, int len){
    @note    output stream is managed with DMA controller 
             after end of transmision is called DMA_UART_TX_Int_Handler
    @see DMA_UART_TX_Int_Handler  
-   @return  int number of sending chars (if == 0 error)
+   @return  uint16_t - number of sending chars (if == 0 error)
 **/
-int dma_printf(const char * format /*format*/, ...)
+uint16_t dma_printf(const char * format /*format*/, ...)
 {
-  unsigned char len;
+  uint16_t len;
   va_list args;
   va_start( args, format );
    
-  len =vsprintf(dmaTxBuffer, format,args);//vlozenie formatovaneho retazca do buff
+  len = vsprintf((char*)dmaTxBuffer, format,args);    //vlozenie formatovaneho retazca do buff
   dmaSend(dmaTxBuffer,len);
 
   va_end( args );
@@ -228,33 +231,33 @@ int dma_printf(const char * format /*format*/, ...)
 
 
 /** 
-   @fn     void radioSend(char* buff, unsigned char len)
+   @fn     void radioSend(void* buff, uint8_t len)
    @brief  send one packet trought radio interface
-   @param  buff :{1-240} pointer at memory to be sended
-   @param  len :{0-240} number of bytes to be sended
+   @param  buff : pointer at memory to be sended
+   @param  len : {0-240} number of bytes to be sended
    @pre    radioInit() must be called before this function is called.
    @code    
-      len=vsprintf(buff, format,args);//@see rf_printf();
-      if(len<240){//check max lenght 
-        radioSend(buff,len+1);//send formated packet
+      len=vsprintf(buff, format,args);    //@see rf_printf();
+      if(len<PACKETRAM_LEN){                        //check max lenght 
+        radioSend(buff,len+1);            //send formated packet
    @endcode
    @note    output stream is trought radio interface
             function is waiting until whole packet is trnsmited
 **/
-void radioSend(char* buff, unsigned char len){
+void radioSend(void* buff, uint8_t len){
   
-  if (RIE_Response == RIE_Success){//send packet
+  if (RIE_Response == RIE_Success){   //send packet
     RIE_Response = RadioTxPacketVariableLen(len, buff); 
-    RX_flag = 0;
+    RX_flag = FALSE;
   }
   
-  if (RIE_Response == RIE_Success){//wait untill packet sended
+  if (RIE_Response == RIE_Success){   //wait untill packet sended
     while(!RadioTxPacketComplete());
   }
   
-  if (RIE_Response == RIE_Success){//start again receiving mod
+  if (RIE_Response == RIE_Success){   //start again receiving mod
     RIE_Response = RadioRxPacketVariableLen(); 
-    RX_flag = 1;
+    RX_flag = TRUE;
   }
   
 #if THROUGHPUT_MEASURE
@@ -266,40 +269,40 @@ void radioSend(char* buff, unsigned char len){
 #endif
 }
 /** 
-   @fn     int rf_printf(const char * format , ...)
-   @brief  this function is equivalent to function printf from library stdio.h
+   @fn     uint8_t rf_printf(const char * format , ...)
+   @brief  equivalent to function printf from library stdio.h with stream trought radio interface
    @param  format : {} pointer at string to formating output string
    @param  ... :{} additive parameters for formating string
-   @pre    radioInoit() must be called before this can be called.
+   @pre    radioInoit() must be called before this function.
    @code    
       radioInit();
       int num = 10;
-      rf_printf();
+      rf_printf("number %d",num);
    @endcode
    @note    output stream is trought radio interface
             function is waiting until whole packet is transmited
             any one formated string (call) is sended in one packet
-   @return  int number of sending chars (if == 0 error)
+   @return  uint8_t - number of sending chars (if == 0 error)
 **/
-unsigned char rf_printf(const char * format /*format*/, ...){
+uint8_t rf_printf(const char * format /*format*/, ...){
   char buff[256];
-  unsigned char len;
+  uint8_t len;
   va_list args;
   va_start( args, format );
 
-  len=vsprintf(buff, format,args);//vlozenie formatovaneho retazca do buff
-  if(len>240){//kontrola maximalnej dlzky retazca
+  len=vsprintf(buff, format,args);    //vlozenie formatovaneho retazca do buff
+  if(len>PACKETRAM_LEN){                        //kontrola maximalnej dlzky retazca
     va_end( args );
     return 0;
   }
       
-  radioSend(buff,len+1);//send formated packet
+  radioSend(buff,len+1);              //send formated packet
 
   va_end( args );
   return len;
 }
 /** 
-   @fn     char radioRecieve(void)
+   @fn     uint8_t radioRecieve(void)
    @brief  function receive one packet with radio interface
    @pre    radioInit() must be called before this function is called.
    @code    
@@ -310,18 +313,18 @@ unsigned char rf_printf(const char * format /*format*/, ...){
       else
         printf("packet was not received correctly before timeout");
    @endcode
-   @note   function is also reding packet form radio interface to unsigned char Buffer[240]
-   @return  char  1 == packet received, 0 == packet was not received correctly before timout
+   @note    function is also reding packet form radio interface to uint8_t Buffer[PACKETRAM_LEN]
+   @return  uint8_t - 1 == packet received, 0 == packet was not received correctly before timout
 **/
-char radioRecieve(void){
-  unsigned int timeout_timer = 0;
+uint8_t radioRecieve(void){
+  uint16_t timeout_timer = 0;
   
-	if (RIE_Response == RIE_Success && RX_flag == 0){
+  if (RIE_Response == RIE_Success && RX_flag == FALSE){
     RIE_Response = RadioRxPacketVariableLen();
-    RX_flag = 1;
+    RX_flag = TRUE;
   }
 
-	if (RIE_Response == RIE_Success && RX_flag == 1){
+  if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
       timeout_timer++;
       //turn on led if nothing is received after timeout
@@ -330,12 +333,12 @@ char radioRecieve(void){
         return 0;
       }
     }
-    RX_flag=0;
+    RX_flag=FALSE;
   }
   
   LED_ON;
   //citanie paketu z rf kontrolera
-	if (RIE_Response == RIE_Success)
+  if (RIE_Response == RIE_Success)
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
   LED_OFF;
   
@@ -348,14 +351,14 @@ char radioRecieve(void){
   #endif
   
   //back to receiving mode
-  if (RIE_Response == RIE_Success && RX_flag == 0){
+  if (RIE_Response == RIE_Success && RX_flag == FALSE){
     RIE_Response = RadioRxPacketVariableLen();   
-    RX_flag = 1;
+    RX_flag = TRUE;
   }
   return 1;
 }
 /** 
-   @fn     char validPacket(void)
+   @fn     uint8_t validPacket(void)
    @brief  validate received packt head in global variable (Buffer)
    @pre    radioInit() must be called before this function is called.
    @pre    radioReceive() with returned 1
@@ -366,10 +369,10 @@ char radioRecieve(void){
           printf("packet was sucsesfully received with correct packet head");
    @endcode
    @note   function send messages about incorrect packet on UART
-   @return  char  1 == valid packet head, 0 == invalid packet head
+   @return uint8_t - 1 == valid packet head, 0 == invalid packet head
 **/
-char validPacket(void){
-  unsigned char i,slv,pktNum;
+uint8_t validPacket(void){
+  uint8_t i,slv,pktNum;
   
     //extracting slave identifier
   slv = Buffer[0]-CHAR_OFFSET;
@@ -379,8 +382,8 @@ char validPacket(void){
   pktNum = Buffer[2]-CHAR_OFFSET;
   
   //if first received packet extract num of packets and check slave ID
-  if (firstRxPkt==0){
-    firstRxPkt=1;
+  if (firstRxPkt==FALSE){
+    firstRxPkt=TRUE;
     
     //extracting number of buffered TX packets
     numOfPkt[actualRxBuffer] = pktNum;
@@ -392,10 +395,10 @@ char validPacket(void){
       pktMemory[actualRxBuffer][i][1]='w';
   }
   
-  if (slv != slave_ID)//check of slave id (number) expected/transmiting
+  if (slv != slave_ID)    //check of slave id (number) expected/transmiting
     dma_printf("slave id dismatch or not recognizet packet");
   
-  if (actualPacket==0)//if zero packet
+  if (actualPacket==0)    //if zero packet
     return 0;
   
   //if number of packet is in range
@@ -451,17 +454,17 @@ void ifMissPktGet(void)
   char str2[2]={0,0};
   
 ////////check for missing packets////////////////////////////////////
-  for(i=0; i < numOfPkt[actualRxBuffer] ; i++)//iterate throught packets
+  for(i=0; i < numOfPkt[actualRxBuffer] ; i++)  //iterate throught packets
   {
-    ch = pktMemory[actualRxBuffer][i][1];//extract number of packet or waiting flag
+    ch = pktMemory[actualRxBuffer][i][1];       //extract number of packet or waiting flag
     #if SIMULATE_RETX
       ch='w';
     #endif
-    if( ch == 'w')//check wait flag
+    if( ch == 'w')                      //check wait flag
     {
       str2[0]= i+CHAR_OFFSET+1;
 
-      strcat(str,str2);//append number of missed packet
+      strcat(str,str2);                 //append number of missed packet
       numOfReTxPackets++;
     }
   }
@@ -482,7 +485,7 @@ void ifMissPktGet(void)
         if (validPacket())
           copyBufferToMemory();
       }
-      else{//send again request to get miss packets
+      else{     //send again request to get miss packets
         if (retransmision < RETRANSMISION -1){
           rf_printf(str);
           i=0;//-1
@@ -503,7 +506,7 @@ void ifMissPktGet(void)
 void flushBufferedPackets(void){
   
   //wait untill all packets are flushed
-  while(flush_flag);
+  while(flush_flag==TRUE);
   //switch buffer 
   actualRxBuffer++;
   actualTxBuffer++;
@@ -513,7 +516,7 @@ void flushBufferedPackets(void){
     actualRxBuffer=0;
   
   dmaTxPkt =0;
-  flush_flag =1;
+  flush_flag =TRUE;
   //call DMA_UART_TX_Int_Handler all managment is inside this function
   DMA_UART_TX_Int_Handler ();
 }
@@ -526,52 +529,52 @@ void flushBufferedPackets(void){
 **/
 void synchronize(void){
   setSynnicTimer();
-  sync_wait = 1;
-  while(sync_wait == 1);//wait for timer interrupt
-  sync_wait = 1;
-  radioSend("SYNC3",6);//first syn. packet
-  while(sync_wait == 1);
-  sync_wait = 1;
+  sync_wait = TRUE;
+  while(sync_wait == TRUE);      //wait for timer interrupt
+  sync_wait = TRUE;
+  radioSend("SYNC3",6);       //first syn. packet
+  while(sync_wait == TRUE);
+  sync_wait = TRUE;
   radioSend("SYNC2",6);
-  while(sync_wait == 1);
-  radioSend("SYNC1",6);//last syn. packet
+  while(sync_wait == TRUE);
+  radioSend("SYNC1",6);       //last syn. packet
 
-  sync_wait = 1;
-  while(sync_wait == 1);//free time before transmitting
-  sync_flag = 0;
+  sync_wait = TRUE;
+  while(sync_wait == TRUE);      //free time before transmitting
+  sync_flag = FALSE;
 } 
 /** 
-   @fn     char zeroPacket(void)
+   @fn     uint8_t zeroPacket(void)
    @brief  check Buffer if is zero packet
    @note   zero packet mean that slave have no buffered packets
-   @return  1 == zero packet, 0 == no zero packet
+   @return uint8_t - 1 == zero packet, 0 == no zero packet
 **/
-char zeroPacket(void){
+uint8_t zeroPacket(void){
   char zero[3]={CHAR_OFFSET,CHAR_OFFSET,CHAR_OFFSET};
   zero[0]+=slave_ID;
-  if (memcmp(Buffer,zero,3)==0)
+  if (memcmp(Buffer,zero,3/*chars to compare*/)==0)
     return 1;
   return 0;
 }
 /** 
-   @fn     char receivePackets(void)
+   @fn     signed char receivePackets(void)
    @brief  receive all packets of sended time slot;
    @pre    radioInit() must be called before this function is called.
    @pre    rf_printf("1slot") or equivalent should be called first.
    @code    
       radioInit();
-      rf_printf("1slot");//slot identificator
+      rf_printf("1slot");       //slot identificator
       if (receivePackets())
-        flushPacktes();//send all received packtes on UART
+        flushPacktes();         //send all received packtes on UART
    @endcode
    @note   function si also retransmitin slot ID packtes if no response
 **/
-char receivePackets(void){
-  char retransmision=0; //number of retransmision attempt
-  char received = 0;//number of received valid packets
+signed char receivePackets(void){
+  char retransmision=0;     //number of retransmision attempt
+  char received = 0;        //number of received valid packets
   char count = 0;
   
-  while (1){//loop for receiving all expecting packets
+  while (1){                //loop for receiving all expecting packets
     
     //if one packet received before timeout
     if (radioRecieve()){
@@ -580,25 +583,25 @@ char receivePackets(void){
       if (validPacket())
         copyBufferToMemory();
       else
-        return 0;//if not recognizet packet
+        return 0;           //if not recognizet packet
       received ++;
       
       if ((actualPacket >= numOfPkt[actualRxBuffer]))
         return received;
     }
     
-    else {//try retransmit again if no one received packet 
-      if (firstRxPkt == 0)
+    else {                  //try retransmit again if no one received packet 
+      if (firstRxPkt == FALSE)
         if (retransmision < RETRANSMISION ){
-          rf_printf(TIME_SLOT_ID_MASTER);//send again slot ID
+          rf_printf(TIME_SLOT_ID_MASTER);   //send again slot ID
           retransmision++;
         }
-        else//if nothing after RETRANSMISION times
+        else                                //if nothing after RETRANSMISION times
           return 0;
     }
-    if (firstRxPkt == 1)
+    if (firstRxPkt == TRUE)
       if (count >= numOfPkt[actualRxBuffer])
-        return -1;//missing some packets
+        return -1;                          //missing some packets
   }
 }
 /** 
@@ -606,11 +609,11 @@ char receivePackets(void){
    @brief  Initialize variables for new ID slot
 **/
 void initializeNewSlot(void){
-  slave_ID++;//increment slave number 
+  slave_ID++;     //increment slave number 
   if (slave_ID > NUM_OF_SLAVE)
     slave_ID = 1;
   
-  firstRxPkt=0;
+  firstRxPkt=FALSE;
   numOfPkt[actualRxBuffer]= 0;
 }
 
@@ -619,11 +622,11 @@ void initializeNewSlot(void){
    @brief  Initialize interrupt priority
 **/
 void SetInterruptPriority (void){
-  NVIC_SetPriority(UART_IRQn,5);//receiving directives
-  NVIC_SetPriority(DMA_UART_TX_IRQn,7);//terminate DMA TX priority
-  NVIC_SetPriority(TIMER1_IRQn,8);//blinking low priority
-  NVIC_SetPriority(TIMER0_IRQn,9);//terminate transmiting higher prioritz
-  NVIC_SetPriority(EINT8_IRQn,10);//highest priority for radio interupt
+  NVIC_SetPriority(UART_IRQn,5);          //receiving directives
+  NVIC_SetPriority(DMA_UART_TX_IRQn,7);   //terminate DMA TX priority
+  NVIC_SetPriority(TIMER1_IRQn,8);        //blinking low priority
+  NVIC_SetPriority(TIMER0_IRQn,9);        //terminate transmiting higher prioritz
+  NVIC_SetPriority(EINT8_IRQn,10);        //highest priority for radio interupt
 }
 /** 
    @fn     int main(void)
@@ -633,8 +636,8 @@ void SetInterruptPriority (void){
 **/
 int main(void)
 { 
-  signed char i,retransmision;
-  
+  memset(lenghtOfPkt, 0, (NUM_OF_PACKETS_IN_MEMORY*2));
+  memset(pktMemory, 0, (NUM_OF_PACKETS_IN_MEMORY*PACKET_MEMORY_DEPTH*2));  
   WdtGo(T3CON_ENABLE_DIS);
   
   uartInit();
@@ -645,18 +648,18 @@ int main(void)
   while(1)
   {
     //send slot identificator
-    rf_printf(TIME_SLOT_ID_MASTER);//start packet for new multiplex
+    rf_printf(TIME_SLOT_ID_MASTER);   //start packet for new multiplex
 
-    if (receivePackets()){//if some data packets are received
+    if (receivePackets()){            //if some data packets are received
       #if DEBUG_MESAGES
         dma_printf("redeived %d pkts ", numOfPkt[actualRxBuffer]);
       #endif
-      ifMissPktGet();//get back if losted some packets
-      flushBufferedPackets();//send on UART received packets
+      ifMissPktGet();                 //get back if losted some packets
+      flushBufferedPackets();         //send on UART received packets
     }
     
     //if synchronize message received
-    if (sync_flag == 1)
+    if (sync_flag == TRUE)
       synchronize();
     
     initializeNewSlot();
@@ -675,7 +678,7 @@ int main(void)
 void GP_Tmr1_Int_Handler (void)
 {
 
-  if (GptSta(pADI_TM1)== TSTA_TMOUT) // if timout interrupt
+  if (GptSta(pADI_TM1)== TSTA_TMOUT)    // if timout interrupt
   {
 
 #if THROUGHPUT_MEASURE
@@ -696,10 +699,10 @@ void GP_Tmr1_Int_Handler (void)
     @see     synchronize()
 **/
 void GP_Tmr0_Int_Handler(void){
-  if (GptSta(pADI_TM0)== TSTA_TMOUT){ // if timout interrupt
-    sync_wait=0;
-    if (sync_flag==0)//if synchronize is complete
-      GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);//stop timer
+  if (GptSta(pADI_TM0)== TSTA_TMOUT){     // if timout interrupt
+    sync_wait=sync_wait;
+    if (sync_flag==FALSE)                     //if synchronize is complete
+      GptCfg(pADI_TM0, TCON_CLK_UCLK, TCON_PRE_DIV256, TCON_ENABLE_DIS);    //stop timer
   }
 }
 
@@ -718,41 +721,41 @@ void GP_Tmr0_Int_Handler(void){
 void DMA_UART_TX_Int_Handler (void)
 {
   int len=0;
-  UrtDma(0,0);  // prevents further UART DMA requests
-  DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );// Disable DMA channel
+  UrtDma(0,0);                       // prevents further UART DMA requests
+  DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
   
-  if(flush_flag == 1){
-    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){//packet itete 0..as needed
+  if(flush_flag == TRUE){
+    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet itete 0..as needed
       
-      dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];//pointer at actuall packet
+      dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
       
-      if(dmaTxPtr[1]!='w'){//try if packet is received waiting flag
+      if(dmaTxPtr[1]!='w'){             //try if packet is received waiting flag
         
         #if BINARY_MODE
           len = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
         #else
-          while(dmaTxPtr[len]!='\0'){//get lenght of packet
+          while(dmaTxPtr[len]!='\0'){   //get lenght of packet
             len++;
           }
         #endif
           
         #if SEND_HEAD
-          dmaSend(dmaTxPtr,len);//send data with head
+          dmaSend(dmaTxPtr,len);        //send data with head
         #else
-          dmaSend(dmaTxPtr+HEAD_LENGHT, len-HEAD_LENGHT);//send only data without head
+          dmaSend(dmaTxPtr+HEAD_LENGHT, len-HEAD_LENGHT);   //send only data without head
         #endif
         
         
-//        dmaTx_flag=1;
+//        dmaTx_flag=TRUE;
       }
       else{
-        dma_printf("missing packet %d ",dmaTxPkt+1);//message about missing packet
-//        dmaTx_flag = 1 ;
+        dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
+//        dmaTx_flag = TRUE ;
       }
       dmaTxPkt++;
     }
-    else{ //all data sended
-      flush_flag=0;
+    else{                                                   //all data sended
+      flush_flag=FALSE;
     }
   }
 }
@@ -767,7 +770,7 @@ void DMA_UART_TX_Int_Handler (void)
 **/
 void DMA_UART_RX_Int_Handler   ()
 {
-  UrtDma(0,0); // prevents additional byte to restart DMA transfer
+  UrtDma(0,0);    // prevents additional byte to restart DMA transfer
 }
 ///////////////////////////////////////////////////////////////////////////
 // UART Interrupt handler 
@@ -781,26 +784,26 @@ void DMA_UART_RX_Int_Handler   ()
     @see     synchronize()
 **/
 void UART_Int_Handler ()
-{ 	
-  unsigned char ucLineSta, ucCOMIID0; 
+{   
+  uint8_t ucCOMIID0; 
   char ch;
  
-  ucCOMIID0 = UrtIntSta(0);		// Read UART Interrupt ID register
+  ucCOMIID0 = UrtIntSta(0);      // Read UART Interrupt ID register
 
-  if ((ucCOMIID0 & COMIIR_STA_RXBUFFULL) == COMIIR_STA_RXBUFFULL)	  // Receive buffer full interrupt
+  if ((ucCOMIID0 & COMIIR_STA_RXBUFFULL) == COMIIR_STA_RXBUFFULL)    // Receive buffer full interrupt
   {
-    ch	= UrtRx(0);   //call UrtRd() clears COMIIR_STA_RXBUFFULL
+    ch  = UrtRx(0);             //call UrtRd() clears COMIIR_STA_RXBUFFULL
   
     rxBuffer[rxUARTcount]= ch;
     rxUARTcount++;
     
     if (ch == '$')
-      if (memcmp(&rxBuffer[rxUARTcount-5],"SYNC$",5) == 0){//end of packet pointer
-        sync_flag = 1;
-        memset(rxBuffer,'\0', rxUARTcount);//clear buffer
+      if (memcmp(&rxBuffer[rxUARTcount-5],"SYNC$",5/*chars to compare*/) == 0){   //end of packet pointer
+        sync_flag = TRUE;
+        memset(rxBuffer,'\0', rxUARTcount);                   //clear buffer
         rxUARTcount = 0;
       }
-    if (rxUARTcount >= UART_BUFFER_DEEP)//check not overflow buffer
+    if (rxUARTcount >= UART_BUFFER_DEEP)                      //check not overflow buffer
       rxUARTcount = 0;
   }
 } 

@@ -5,6 +5,13 @@
    @version  v1.0
    @author   PAD CSE group
    @date     May 08th 2013 
+   @note P.S. 2016-04-11, modified intial value from \n
+      static RIE_BOOL             bPacketTx                     = RIE_FALSE; \n
+      static RIE_BOOL             bPacketRx                     = RIE_FALSE; \n
+   to \n
+      static RIE_BOOL             bPacketTx                     = RIE_TRUE; \n
+      static RIE_BOOL             bPacketRx                     = RIE_TRUE; \n
+   to ensure while(RadioRxPacketAvailable()); at begining will not doing forever
               
 
 @section disclaimer Disclaimer
@@ -24,7 +31,7 @@ TO ENSURE THAT THE RESULTING APPLICATION PERFORMS AS REQUIRED AND IS SAFE.
 
 **/
 
-#include "include.h"
+#include "library.h"
 
 // 1.0 of the Engine
 #define RIE_ENGINE_MAJOR_VERSION 1UL

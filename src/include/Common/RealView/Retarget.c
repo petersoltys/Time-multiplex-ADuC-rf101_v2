@@ -22,7 +22,7 @@ TO ENSURE THAT THE RESULTING APPLICATION PERFORMS AS REQUIRED AND IS SAFE.
 
 #include <stdio.h>
 #include <rt_misc.h>
-#include <include.h>
+#include <library.h>
 
 #pragma import(__use_no_semihosting_swi)
 
