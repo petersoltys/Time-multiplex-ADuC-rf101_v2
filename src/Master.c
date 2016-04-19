@@ -8,10 +8,10 @@
 
              
 
-   @version     V2.1B
+   @version     'V2.2'-0-gd953f50
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        14.04.2016 (DD.MM.YYYY)
+   @date        19.04.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -76,9 +76,10 @@ uint8_t actualPacket;
 signed char actualRxBuffer=0,actualTxBuffer=1;
 
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
-uint8_t dmaTxBuffer[255];    //buffer for DMA TX UART channel
+uint8_t dmaTxBuffer[PACKET_MEMORY_DEPTH*2];    //buffer for DMA TX UART channel
 #define UART_BUFFER_DEEP 50
 uint8_t rxBuffer[UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
+
 
 uint8_t slave_ID = 1;   //Slave ID
 signed char send=FALSE;
@@ -89,6 +90,7 @@ signed char sync_flag = FALSE;    //flag starting sending synchronization packet
 signed char sync_wait = FALSE;
 signed char firstRxPkt = FALSE;
 uint8_t rxUARTcount=0;
+uint8_t rxPAcketTOut=0;
 
 //variables for DMA_UART_TX_Int_Handler
 signed char dmaTxSlv=0,dmaTxPkt=0,dmaTx_flag=FALSE;
@@ -319,9 +321,17 @@ uint8_t rf_printf(const char * format /*format*/, ...){
 uint8_t radioRecieve(void){
   uint16_t timeout_timer = 0;
   
-  if (RIE_Response == RIE_Success && RX_flag == FALSE){
+  if (RIE_Response == RIE_Success && RX_flag == FALSE ){
     RIE_Response = RadioRxPacketVariableLen();
     RX_flag = TRUE;
+    rxPAcketTOut=0;
+  }
+  if (rxPAcketTOut > RX_PKT_TOUT_CNT){
+    RadioTerminateRadioOp();
+    radioInit();
+    RIE_Response = RadioRxPacketVariableLen();
+    RX_flag = TRUE;
+    rxPAcketTOut=0;
   }
 
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
@@ -330,6 +340,7 @@ uint8_t radioRecieve(void){
       //turn on led if nothing is received after timeout
       if (timeout_timer > T_TIMEOUT){
         LED_ON;
+        rxPAcketTOut++;
         return 0;
       }
     }
@@ -504,9 +515,12 @@ void ifMissPktGet(void)
    @note   all managment about sending packets is in @see DMA_UART_TX_Int_Handler()
 **/
 void flushBufferedPackets(void){
-  
+  uint16_t counter=0;
   //wait untill all packets are flushed
-  while(flush_flag==TRUE);
+  while(flush_flag==TRUE)
+    counter++;
+  if (counter)
+    counter=0;
   //switch buffer 
   actualRxBuffer++;
   actualTxBuffer++;
@@ -591,13 +605,15 @@ signed char receivePackets(void){
     }
     
     else {                  //try retransmit again if no one received packet 
-      if (firstRxPkt == FALSE)
+      if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
           rf_printf(TIME_SLOT_ID_MASTER);   //send again slot ID
           retransmision++;
         }
-        else                                //if nothing after RETRANSMISION times
+        else{                                //if nothing after RETRANSMISION times
           return 0;
+        }
+      }
     }
     if (firstRxPkt == TRUE)
       if (count >= numOfPkt[actualRxBuffer])
@@ -622,11 +638,12 @@ void initializeNewSlot(void){
    @brief  Initialize interrupt priority
 **/
 void SetInterruptPriority (void){
-  NVIC_SetPriority(UART_IRQn,5);          //receiving directives
-  NVIC_SetPriority(DMA_UART_TX_IRQn,7);   //terminate DMA TX priority
-  NVIC_SetPriority(TIMER1_IRQn,8);        //blinking low priority
-  NVIC_SetPriority(TIMER0_IRQn,9);        //terminate transmiting higher prioritz
-  NVIC_SetPriority(EINT8_IRQn,10);        //highest priority for radio interupt
+  
+  NVIC_SetPriority(TIMER1_IRQn,5);        //troughput timer
+  NVIC_SetPriority(TIMER0_IRQn,4);        //synchronization timer
+  NVIC_SetPriority(DMA_UART_TX_IRQn,3);   //terminate DMA TX priority
+  NVIC_SetPriority(UART_IRQn,2);          //receiving directives (short messages)
+  NVIC_SetPriority(EINT8_IRQn,1);         //highest priority for radio interupt
 }
 /** 
    @fn     int main(void)
@@ -711,6 +728,20 @@ void GP_Tmr0_Int_Handler(void){
 // used for sending data on UART
 // and for terminating of UART stream
 ///////////////////////////////////////////////////////////////////////////
+void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
+  uint8_t ch;
+  uint16_t i;
+  for (i=0;i<len;i++){    //conversion of binary data to ascii chars 0 ... F 
+    ch = (from[i]&0x0f) + '0';
+    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      ch += 7;
+    to[(i*2)+1] = ch;
+    ch = ((from[i]&0xf0)>>4)+'0';
+    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      ch += 7;
+    to[(i*2)] = ch;
+  }
+}
 /** 
     @fn      void DMA_UART_TX_Int_Handler (void)
     @brief   Interrupt handler managing sending content of pktMemory on UART with DMA
@@ -720,7 +751,7 @@ void GP_Tmr0_Int_Handler(void){
 **/
 void DMA_UART_TX_Int_Handler (void)
 {
-  int len=0;
+  uint16_t len=0;
   UrtDma(0,0);                       // prevents further UART DMA requests
   DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
   
@@ -734,22 +765,30 @@ void DMA_UART_TX_Int_Handler (void)
         #if BINARY_MODE
           len = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
         #else
-          while(dmaTxPtr[len]!='\0'){   //get lenght of packet
+          while(dmaTxPtr[len]!='\0'){          //get lenght of packet
             len++;
           }
         #endif
-          
-        #if SEND_HEAD
-          dmaSend(dmaTxPtr,len);        //send data with head
+        #define HEXA_TRANSFER 1
+        #if HEXA_TRANSFER
+          binToHexa(dmaTxPtr, dmaTxBuffer, len);
+          #if SEND_HEAD
+            dmaSend(dmaTxBuffer,len*2);        //send data with head
+          #else
+            dmaSend(dmaTxBuffer+HEAD_LENGHT, (len*2)-(HEAD_LENGHT*2) );   //send only data without head
+          #endif
         #else
-          dmaSend(dmaTxPtr+HEAD_LENGHT, len-HEAD_LENGHT);   //send only data without head
+          #if SEND_HEAD
+            dmaSend(dmaTxBuffer,len);          //send data with head
+          #else
+            dmaSend(dmaTxBuffer+HEAD_LENGHT, (len)-(HEAD_LENGHT) );   //send only data without head
+          #endif
         #endif
-        
         
 //        dmaTx_flag=TRUE;
       }
       else{
-        dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
+        //dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
 //        dmaTx_flag = TRUE ;
       }
       dmaTxPkt++;
