@@ -18,16 +18,16 @@ set /p VERSION=<temp.txt
 del temp.txt
 
 ::find and repalace @version tag with new version number
-Revision_control\fnr.exe --cl --dir %cd%\..\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --useEscapeChars --find "@version[0-9.' a-z,A-Z,-]*" --replace "@version     %VERSION%"
+Revision_control\fnr.exe --cl --dir %cd%\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --useEscapeChars --find "@version[0-9.' a-z,A-Z,-]*" --replace "@version     %VERSION%"
 ::find and repalace @date tag with actual date
-Revision_control\fnr.exe --cl --dir %cd%\..\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --useEscapeChars --find "@date[0-9. ]*" --replace "@date        %DATE%"
+Revision_control\fnr.exe --cl --dir %cd%\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --useEscapeChars --find "@date[0-9. ]*" --replace "@date        %DATE%"
 
 ::find and repalace version tag (for front page of doxygen) with new version number
-Revision_control\fnr.exe --cl --dir %cd%\..\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --caseSensitive --useEscapeChars --find "Date:[0-9. ]*" --replace "Date:       %DATE%"
+Revision_control\fnr.exe --cl --dir %cd%\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --caseSensitive --useEscapeChars --find "Date:[0-9. ]*" --replace "Date:       %DATE%"
 ::find and repalace date tag (for front page of doxygen) with actual date
-Revision_control\fnr.exe --cl --dir %cd%\..\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --caseSensitive --useEscapeChars --find "Version:[0-9.' a-z,A-Z,-]*" --replace "Version:  %VERSION%"
+Revision_control\fnr.exe --cl --dir %cd%\src --fileMask "*.c, *.h" --excludeFileMask "*.dll, *.exe, *.bat" --useRegEx --caseSensitive --useEscapeChars --find "Version:[0-9.' a-z,A-Z,-]*" --replace "Version:  %VERSION%"
 
 ::find and repalace version tag (for readme.md) with new version number
-Revision_control\fnr.exe --cl --dir %cd%\.. --fileMask "*.c, *.h, *.MD" --useRegEx --caseSensitive --useEscapeChars --find "Date:[0-9. ]*" --replace "Date:         %DATE%"
+Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.c, *.h, *.MD" --useRegEx --caseSensitive --useEscapeChars --find "Date:[0-9. ]*" --replace "Date:         %DATE%"
 ::find and repalace date tag (for readme.md) with actual date
-Revision_control\fnr.exe --cl --dir %cd%\.. --fileMask "*.c, *.h, *.MD" --useRegEx --caseSensitive --useEscapeChars --find "Version:[0-9.' a-z,A-Z,-]*" --replace "Version:      %VERSION%"
+Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.c, *.h, *.MD" --useRegEx --caseSensitive --useEscapeChars --find "Version:[0-9.' a-z,A-Z,-]*" --replace "Version:      %VERSION%"
