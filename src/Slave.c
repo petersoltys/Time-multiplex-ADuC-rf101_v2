@@ -729,9 +729,10 @@ void DMA_UART_TX_Int_Handler ()
 // DMA UART Interrupt handler 
 // used for build packet
 ///////////////////////////////////////////////////////////////////////////
+/*
 void hexaToBin(uint8_t* from, uint8_t to, len){
 
-}
+}*/
 /** 
     @fn      void DMA_UART_RX_Int_Handler()
     @brief   Interrupt handler terminating DMA receiving transaction if constant
