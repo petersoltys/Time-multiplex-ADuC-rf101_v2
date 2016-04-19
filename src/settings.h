@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-0-gd953f50
+   @version     V2.1B
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        19.04.2016(DD.MM.YYYY) 
+   @date        14.04.2016 (DD.MM.YYYY)
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -207,14 +207,6 @@
     @param  time :{7000 ~ 0.8ms}
  **/
 #define T_TIMEOUT 7000     //max time(number of increments) to response of slave 
- 
- /**
-    @brief  max number of receiving timeouts to restart receiving operation
-    @see    radioRecieve()
-    @see    T_TIMEOUT
-    @param  (uint8_t) 0 - 255 
- **/
-#define RX_PKT_TOUT_CNT 5
 
 /*******************************************************************************
 * Master interface settings
@@ -332,9 +324,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-0-gd953f50
+	- Version:  2.1B
 	- Hardware: ADucRF101MKxZ
-	- Date:       19.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:     14.04.2016 (DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

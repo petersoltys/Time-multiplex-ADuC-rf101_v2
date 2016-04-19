@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-0-gd953f50
+   @version     V2.1B
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        19.04.2016(DD.MM.YYYY) 
+   @date        14.04.2016 (DD.MM.YYYY)
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -100,7 +100,6 @@ struct rand_pkt {
 char actualRxBuffer=0;
 char actualTxBuffer=1;
 
-uint8_t dmaRxBuffer[PACKET_MEMORY_DEPTH*2];    //buffer for DMA TX UART channel
 uint8_t rxUARTbuffer[255];
 uint8_t* rxPktPtr ;
 int rxUARTcount = 0;
@@ -729,9 +728,6 @@ void DMA_UART_TX_Int_Handler ()
 // DMA UART Interrupt handler 
 // used for build packet
 ///////////////////////////////////////////////////////////////////////////
-void hexaToBin(uint8_t* from, uint8_t to, len){
-
-}
 /** 
     @fn      void DMA_UART_RX_Int_Handler()
     @brief   Interrupt handler terminating DMA receiving transaction if constant
@@ -742,7 +738,7 @@ void DMA_UART_RX_Int_Handler   ()
 {
   //only if constant lenght of packet
 #if LEN_OF_RX_PKT
-uint8_t ch1, ch2;
+
   
   UrtDma(0,0); // prevents additional byte to restart DMA transfer
   #if BINARY_MODE
@@ -755,17 +751,7 @@ uint8_t ch1, ch2;
   else{
     rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
     
-    for (i=0;i<LEN_OF_RX_PKT/2;i++){    //conversion of binary data to ascii chars 0 ... F 
-      ch1 = rxUARTbuffer[i*2]-'0';
-      if (ch1 > 9)         //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch1 -= 7;
-      ch2 = rxUARTbuffer[(i*2)+1]-'0';
-      if (ch2 > 9)         //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch2 -= 7;
-      rxPktPtr[i] = (ch1<<4) | ch2;
-    }
-    
-    //memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);    //copy buffer to mmory
+    memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);    //copy buffer to mmory
     //save number of received bytes
     lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;
     rxUARTcount = 0;
