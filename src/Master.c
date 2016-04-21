@@ -8,7 +8,7 @@
 
              
 
-   @version     'V2.2'-4-gd819084
+   @version     'V2.2'-5-g2d57c87
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        19.04.2016(DD.MM.YYYY)
@@ -645,6 +645,43 @@ void SetInterruptPriority (void){
   NVIC_SetPriority(UART_IRQn,2);          //receiving directives (short messages)
   NVIC_SetPriority(EINT8_IRQn,1);         //highest priority for radio interupt
 }
+
+uint8_t checkIntegrityOfFirmware(void){
+  #define BEGIN_OF_CODE_MEMORY 0x0  //code 
+  #define END_OF_CODE_MEMORY   0x20000
+/*
+512*256 = 131072 = 0x20000
+*/
+  uint8_t *code = (uint8_t *)BEGIN_OF_CODE_MEMORY;   // Smernik na zaciatok kodu programu kodovej pamate
+  
+  uint8_t buff[512];
+  crc retval;
+  uint16_t i,j;
+  
+  crcInit();
+  
+  for(i=0; i < 256; i++){
+    for(j=0; j < 512; j++){
+      buff[j] = *code++;
+    }
+    if(i==255)
+      LED_OFF;
+    retval = crcFast(buff,512);
+  }
+  
+  if (retval == 0){
+    dma_printf("integrity check ok");
+    LED_ON;
+    while(1);
+    return TRUE;
+  }
+  else{
+    dma_printf("problem in integrity of firmware");
+    LED_OFF;
+    while(1);
+    return FALSE;
+  }
+}
 /** 
    @fn     int main(void)
    @brief  main function of master program
@@ -653,11 +690,13 @@ void SetInterruptPriority (void){
 **/
 int main(void)
 { 
+  
   memset(lenghtOfPkt, 0, (NUM_OF_PACKETS_IN_MEMORY*2));
   memset(pktMemory, 0, (NUM_OF_PACKETS_IN_MEMORY*PACKET_MEMORY_DEPTH*2));  
   WdtGo(T3CON_ENABLE_DIS);
   
   uartInit();
+  checkIntegrityOfFirmware();
   ledInit();
   radioInit();
   SetInterruptPriority ();

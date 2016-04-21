@@ -48,6 +48,7 @@ to ensure that the resulting application performs as required and is safe.
 #include "UrtLib.h"
 #include "WdtLib.h"
 #include "WutLib.h"
+#include "crc.h"
 
 
 #endif // __INCLUDE_H

@@ -77,10 +77,10 @@
             <nStopB2X>0</nStopB2X>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>1</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
+            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg2>1</RunUserProg2>
             <UserProg1Name>$P\Revision_control\rev.bat</UserProg1Name>
-            <UserProg2Name></UserProg2Name>
+            <UserProg2Name>$P\Integrity\conv.bat #H</UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
@@ -371,7 +371,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -580,6 +580,11 @@
               <FileName>WutLib.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\include\DasLib\WutLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>crc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Integrity\crc.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1223,6 +1228,11 @@
               <FileName>WutLib.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\include\DasLib\WutLib.c</FilePath>
+            </File>
+            <File>
+              <FileName>crc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Integrity\crc.c</FilePath>
             </File>
           </Files>
         </Group>
