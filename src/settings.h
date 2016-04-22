@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-5-g2d57c87
+   @version     'V2.2'-6-g999f8d6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        19.04.2016(DD.MM.YYYY) 
+   @date        22.04.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -234,7 +234,7 @@
     @brief  number of retransmission trying until slave is marked as not responding
     @param  retransmission attempts :{3}
  **/
-#define RETRANSMISION 3     //number of retransmiting comand if no response
+#define RETRANSMISION 3     //number of retransmiting if no response
 
 /*******************************************************************************
 * Slave interface settings
@@ -269,8 +269,6 @@
 //head definition
  /** @brief  lenght of head in bytes **/
 #define HEAD_LENGHT 3
-//format inside of sprintf
-#define HEAD_FORMAT "%d%c%c",SLAVE_ID,txPkt,numOfPackets[actualTxBuffer]-1 
 
 //hardware based macros
  /** @brief  appended time(number of increments) after transmition to procesing on master **/
@@ -289,12 +287,12 @@
 #define RX_STREAM 0       /*!< @brief stream of redeived data to UART**/
 #define TX_STREAM 0       /*!< @brief stream of transmited data to UART**/
 #define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/
+
 /**
-  @brief measured data troughput
-  @param {0-2}
-          - if ==0 no measuring
-          - if ==1 measure throughput of received data from UART
-          - if ==2 measure maximum throughput with shyntetic data
+  @brief settings of used implementation of random function
+  @param {0-1}
+          - if ==0 better implemetntation from CodeGuru
+          - if ==1 is used historical random function (very weak quality)
   @code
   //oficial implementation of random function from CodeGuru
       void __cdecl srand (unsigned int seed)
@@ -306,19 +304,12 @@
     {
         return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
     }
-  @note measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
-**/
-#define THROUGHPUT_MEASURE 0  
-/**
-  @brief settings of used implementation of random function
-  @param {0-1}
-          - if ==0 better implemetntation from CodeGuru
-          - if ==1 is used historical random function (very weak quality)
-  @note measured are all data included packet heads (aproximetlz 5000 Bytes/s by slave)
 **/
 #define WEEAK_RANDOM_FUNCTION 0                               
 #define RAND_SEED 500 /*!< @brief initial number for PRNG */
           
+          
+#define HEXA_TRANSFER 0
 
 #endif    //#ifndef __SETTINGS_H
 
@@ -332,9 +323,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-5-g2d57c87
+	- Version:  'V2.2'-6-g999f8d6
 	- Hardware: ADucRF101MKxZ
-	- Date:       19.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       22.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
