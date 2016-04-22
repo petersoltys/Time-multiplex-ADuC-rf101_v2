@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-5-g2d57c87
+   @version     'V2.2'-6-g999f8d6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        19.04.2016(DD.MM.YYYY)
+   @date        22.04.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -73,33 +73,31 @@ uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] ;   //similar like pktMemory
 
 uint8_t actualPacket;
 
-signed char actualRxBuffer=0,actualTxBuffer=1;
+int8_t actualRxBuffer=0,actualTxBuffer=1;
 
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
-uint8_t dmaTxBuffer[PACKET_MEMORY_DEPTH*2];    //buffer for DMA TX UART channel
+uint8_t dmaTxBuffer[(PACKET_MEMORY_DEPTH*2)];    //buffer for DMA TX UART channel
 #define UART_BUFFER_DEEP 50
 uint8_t rxBuffer[UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
 
 
 uint8_t slave_ID = 1;   //Slave ID
-signed char send=FALSE;
-//signed char nextRxPkt=0;
+int8_t send=FALSE;
+//int8_t nextRxPkt=0;
 
-signed char TX_flag=FALSE,RX_flag=FALSE, flush_flag=FALSE;
-signed char sync_flag = FALSE;    //flag starting sending synchronization packet
-signed char sync_wait = FALSE;
-signed char firstRxPkt = FALSE;
+int8_t TX_flag=FALSE,RX_flag=FALSE, flush_flag=FALSE;
+int8_t sync_flag = FALSE;    //flag starting sending synchronization packet
+int8_t sync_wait = FALSE;
+int8_t firstRxPkt = FALSE;
 uint8_t rxUARTcount=0;
 uint8_t rxPAcketTOut=0;
 
 //variables for DMA_UART_TX_Int_Handler
-signed char dmaTxSlv=0,dmaTxPkt=0,dmaTx_flag=FALSE;
-uint8_t* dmaTxPtr;
-
-#if THROUGHPUT_MEASURE
-int rxThroughput;
-int txThroughput;
-#endif
+uint8_t  dmaTxPkt = 0;          /*!< @brief global variable, pointer pointing at actually transmitted packet trought UART */
+int8_t   dmaTx_flag = FALSE;    /*!< @brief flag about transmitting operation */
+int8_t   dmaTxReady = FALSE;    /*!< @brief flag mean that all variables are set for transmit */
+uint8_t  dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
+uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
 
 void DMA_UART_TX_Int_Handler (void);
 
@@ -262,9 +260,6 @@ void radioSend(void* buff, uint8_t len){
     RX_flag = TRUE;
   }
   
-#if THROUGHPUT_MEASURE
-  txThroughput=txThroughput+len;
-#endif
     //DMA UART stream
 #if TX_STREAM
   dmaSend(buff,len-1);
@@ -303,6 +298,75 @@ uint8_t rf_printf(const char * format /*format*/, ...){
   va_end( args );
   return len;
 }
+
+void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
+
+  uint16_t i;
+  for (i = 0 ; i < len ; i++){    //conversion of binary data to ascii chars 0 ... F 
+    *to = ((*from & 0xf0)>>4)+'0';
+    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      *to += 7;
+    
+    to++;                 //increment pointer
+    
+    *to = (*from & 0x0f) + '0';
+    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      *to += 7;
+        
+    to++;                 //increment pointer
+    from++;
+  }
+}
+/*
+void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
+  uint8_t ch;
+  uint16_t i;
+  for (i=0;i<len;i++){    //conversion of binary data to ascii chars 0 ... F 
+    ch = (from[i]&0x0f) + '0';
+    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      ch += 7;
+    to[(i*2)+1] = ch;
+    ch = ((from[i]&0xf0)>>4)+'0';
+    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      ch += 7;
+    to[(i*2)] = ch;
+  }
+}*/
+void setTransfer(void){
+  if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
+    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet itete 0..as needed
+      
+      dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
+      
+      if(dmaTxPtr[1]!='w'){                    //try if packet is received waiting flag
+        
+        #if BINARY_MODE
+          dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
+        #else
+          while(dmaTxPtr[dmaTxLen]!='\0'){          //get lenght of packet
+            dmaTxLen++;
+          }
+        #endif
+        #if HEXA_TRANSFER
+          binToHexa(dmaTxPtr,dmaTxBuffer,dmaTxLen);
+        #endif
+          
+        dmaTxReady = TRUE;
+        if (dmaTx_flag == FALSE){
+          dmaTx_flag = TRUE;
+          DMA_UART_TX_Int_Handler();
+        }
+      }
+      else{
+        //dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
+      }
+      dmaTxPkt++;
+    }
+    else{                                                   //all data sended
+      flush_flag=FALSE;
+    }
+  }
+}
 /** 
    @fn     uint8_t radioRecieve(void)
    @brief  function receive one packet with radio interface
@@ -337,6 +401,7 @@ uint8_t radioRecieve(void){
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
       timeout_timer++;
+      setTransfer();
       //turn on led if nothing is received after timeout
       if (timeout_timer > T_TIMEOUT){
         LED_ON;
@@ -353,9 +418,6 @@ uint8_t radioRecieve(void){
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
   LED_OFF;
   
-  #if THROUGHPUT_MEASURE
-    rxThroughput=rxThroughput+PktLen;
-  #endif
     //DMA UART stream
   #if RX_STREAM
     dmaSend(Buffer,PktLen-1);
@@ -460,7 +522,7 @@ void copyBufferToMemory(void){
 **/
 void ifMissPktGet(void)
 {
-  signed char ch, i, numOfReTxPackets = 0, retransmision=0;
+  int8_t ch, i, numOfReTxPackets = 0, retransmision=0;
   char str[25]=RETRANSMISION_ID;
   char str2[2]={0,0};
   
@@ -571,7 +633,7 @@ uint8_t zeroPacket(void){
   return 0;
 }
 /** 
-   @fn     signed char receivePackets(void)
+   @fn     int8_t receivePackets(void)
    @brief  receive all packets of sended time slot;
    @pre    radioInit() must be called before this function is called.
    @pre    rf_printf("1slot") or equivalent should be called first.
@@ -583,7 +645,7 @@ uint8_t zeroPacket(void){
    @endcode
    @note   function si also retransmitin slot ID packtes if no response
 **/
-signed char receivePackets(void){
+int8_t receivePackets(void){
   char retransmision=0;     //number of retransmision attempt
   char received = 0;        //number of received valid packets
   char count = 0;
@@ -672,13 +734,13 @@ uint8_t checkIntegrityOfFirmware(void){
   if (retval == 0){
     dma_printf("integrity check ok");
     LED_ON;
-    while(1);
+    //while(1);
     return TRUE;
   }
   else{
     dma_printf("problem in integrity of firmware");
     LED_OFF;
-    while(1);
+    //while(1);
     return FALSE;
   }
 }
@@ -727,9 +789,7 @@ int main(void)
 ///////////////////////////////////////////////////////////////////////////
 /** 
     @fn      void GP_Tmr1_Int_Handler (void)
-    @brief   Interrupt handler for measuring troughput
-    @note    only if THROUGHPUT_MEASURE is set in settings.h
-    @see     settings.h
+    @brief   Interrupt handler for timer 1 already unused
 **/
 void GP_Tmr1_Int_Handler (void)
 {
@@ -737,11 +797,6 @@ void GP_Tmr1_Int_Handler (void)
   if (GptSta(pADI_TM1)== TSTA_TMOUT)    // if timout interrupt
   {
 
-#if THROUGHPUT_MEASURE
-    dma_printf("troughputs TX %d bytes/s RX %d bytes/s */*/*/ \n",txThroughput,rxThroughput); 
-    txThroughput=0;
-    rxThroughput=0;
-#endif
   }
 }
 
@@ -767,20 +822,7 @@ void GP_Tmr0_Int_Handler(void){
 // used for sending data on UART
 // and for terminating of UART stream
 ///////////////////////////////////////////////////////////////////////////
-void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
-  uint8_t ch;
-  uint16_t i;
-  for (i=0;i<len;i++){    //conversion of binary data to ascii chars 0 ... F 
-    ch = (from[i]&0x0f) + '0';
-    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      ch += 7;
-    to[(i*2)+1] = ch;
-    ch = ((from[i]&0xf0)>>4)+'0';
-    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      ch += 7;
-    to[(i*2)] = ch;
-  }
-}
+
 /** 
     @fn      void DMA_UART_TX_Int_Handler (void)
     @brief   Interrupt handler managing sending content of pktMemory on UART with DMA
@@ -790,51 +832,27 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 **/
 void DMA_UART_TX_Int_Handler (void)
 {
-  uint16_t len=0;
   UrtDma(0,0);                       // prevents further UART DMA requests
   DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
   
-  if(flush_flag == TRUE){
-    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet itete 0..as needed
-      
-      dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
-      
-      if(dmaTxPtr[1]!='w'){             //try if packet is received waiting flag
-        
-        #if BINARY_MODE
-          len = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
-        #else
-          while(dmaTxPtr[len]!='\0'){          //get lenght of packet
-            len++;
-          }
-        #endif
-        #define HEXA_TRANSFER 1
-        #if HEXA_TRANSFER
-          binToHexa(dmaTxPtr, dmaTxBuffer, len);
-          #if SEND_HEAD
-            dmaSend(dmaTxBuffer,len*2);        //send data with head
-          #else
-            dmaSend(dmaTxBuffer+HEAD_LENGHT, (len*2)-(HEAD_LENGHT*2) );   //send only data without head
-          #endif
-        #else
-          #if SEND_HEAD
-            dmaSend(dmaTxBuffer,len);          //send data with head
-          #else
-            dmaSend(dmaTxBuffer+HEAD_LENGHT, (len)-(HEAD_LENGHT) );   //send only data without head
-          #endif
-        #endif
-        
-//        dmaTx_flag=TRUE;
-      }
-      else{
-        //dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
-//        dmaTx_flag = TRUE ;
-      }
-      dmaTxPkt++;
-    }
-    else{                                                   //all data sended
-      flush_flag=FALSE;
-    }
+  if (dmaTxReady == TRUE){
+    #if HEXA_TRANSFER
+      #if SEND_HEAD
+        dmaSend(dmaTxBuffer,dmaTxLen*2);        //send data with head
+      #else
+        dmaSend(dmaTxBuffer+HEAD_LENGHT, (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
+      #endif
+    #else
+      #if SEND_HEAD
+        dmaSend(dmaTxPtr,dmaTxLen);          //send data with head
+      #else
+        dmaSend(dmaTxPtr+HEAD_LENGHT, (dmaTxLen)-(HEAD_LENGHT) );   //send only data without head
+      #endif
+    #endif
+    dmaTxReady = FALSE;//set flag about transfer
+  }
+  else{
+    dmaTx_flag = FALSE;
   }
 }
 

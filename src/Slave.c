@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-4-gd819084
+   @version     'V2.2'-6-g999f8d6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        19.04.2016(DD.MM.YYYY) 
+   @date        22.04.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -113,10 +113,6 @@ void UART_Int_Handler (void);
 int i=0,j=0;
 int debugTimer=0;
 
-#if THROUGHPUT_MEASURE
-int txThroughput;
-int rxThroughput;
-#endif
 
 /** 
    @fn      void uartInit(void)
@@ -282,9 +278,6 @@ void radioSend(void* buff, uint8_t len){
     RX_flag = TRUE;
   }
   
-#if THROUGHPUT_MEASURE
-  txThroughput=txThroughput+len;
-#endif
     //DMA UART stream
 #if TX_STREAM
   dmaSend(buff,len-1);
@@ -366,9 +359,6 @@ uint8_t radioRecieve(void){    //pocka na prijatie jedneho paketu
     RIE_Response = RadioRxPacketRead(sizeof(Buffer),&PktLen,Buffer,&RSSI);
   //LED_OFF;
   
-  #if THROUGHPUT_MEASURE
-    rxThroughput=rxThroughput+PktLen;
-  #endif
     //DMA UART stream
   #if RX_STREAM
     dmaSend(Buffer,PktLen-1);
@@ -398,42 +388,6 @@ void setTimeToSync(uint16_t time){
   while (GptSta(pADI_TM0)& TSTA_CLRI);  // wait for sync of TCLRI write. required because of use of asynchronous clock
   NVIC_EnableIRQ(TIMER0_IRQn);
 }
-
-#if THROUGHPUT_MEASURE
-/** 
-   @fn     void troughputMeasureInit(void)
-   @brief  set general purpose timer0 to 1s interval to measure troughput
-   @see    void GP_Tmr1_Int_Handler ()
-   @note   timer predivider factor = 32768, low freq. oscillator clock, periodic mode
-**/
-void troughputMeasureInit(void){
-  GptLd (pADI_TM1, 0x0);  // Interval of 1s
-  GptCfg(pADI_TM1, TCON_CLK_LFOSC, TCON_PRE_DIV32768, TCON_ENABLE|TCON_MOD_PERIODIC);
-  while (GptSta(pADI_TM1)& TSTA_CON);   // wait for sync of TCON write. required because of use of asynchronous clock
-  GptClrInt(pADI_TM1,TCLRI_TMOUT);
-  while (GptSta(pADI_TM1)& TSTA_CLRI);  // wait for sync of TCLRI write. required because of use of asynchronous clock
-  NVIC_EnableIRQ(TIMER1_IRQn);
-}
-#endif
-
-#if THROUGHPUT_MEASURE == 2
-/** 
-   @fn     uint8_t transmit(void)
-   @brief  send synthetic data to master just to measure troughput
-   @return uint8_t - number of transmitted packets
-**/
-uint8_t transmit(void){
-  my_slot=TRUE;
-  uint8_t txPkt=0;
-  
-  while(my_slot==TRUE && txPkt < 10){
-    //all times like packet 2
-    rf_printf("%c02 my shyntetic data ... number of tx data %d Bytes",SLAVE_ID,txThroughput);
-    txPkt++;
-  }
-  return txPkt;
-}
-#else
 
 /** 
    @fn     uint8_t transmit(void)
@@ -482,7 +436,6 @@ uint8_t transmit(void){
   memory_full_flag = FALSE;
   return txPkt;   //return number of transmited packets
 }
-#endif
 
 /** 
    @fn     uint8_t retransmit(void)
@@ -627,9 +580,6 @@ int main(void)
   random_init();
   
   LED_OFF;
-#if THROUGHPUT_MEASURE
-  troughputMeasureInit();
-#endif
   radioInit();    //inicialize radio conection
     
   while (1){
@@ -695,18 +645,12 @@ void GP_Tmr0_Int_Handler(void){
 ///////////////////////////////////////////////////////////////////////////
 /** 
     @fn      void GP_Tmr1_Int_Handler (void)
-    @brief   Interrupt handler for measuring troughput
-    @note    only if THROUGHPUT_MEASURE is set in settings.h
-    @see     settings.h
+    @brief   Interrupt handler for timer1 already unused
 **/
 void GP_Tmr1_Int_Handler(void){
   if (GptSta(pADI_TM1)== TSTA_TMOUT) // if timout interrupt
   { 
-#if THROUGHPUT_MEASURE
-    dma_printf("troughputs TX %d bytes/s RX %d bytes/s */*/*/ \n",txThroughput,rxThroughput); 
-    txThroughput=0;
-    rxThroughput=0;
-#endif
+
   }
 }
 
