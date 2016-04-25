@@ -77,7 +77,7 @@
             <nStopB2X>0</nStopB2X>
           </BeforeMake>
           <AfterMake>
-            <RunUserProg1>0</RunUserProg1>
+            <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>1</RunUserProg2>
             <UserProg1Name>$P\Revision_control\rev.bat</UserProg1Name>
             <UserProg2Name>$P\Integrity\conv.bat #H</UserProg2Name>

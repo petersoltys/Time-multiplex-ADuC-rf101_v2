@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-6-g999f8d6
+   @version     'V2.2'-8-g41db737
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        22.04.2016(DD.MM.YYYY) 
+   @date        25.04.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -559,6 +559,39 @@ void random_init(void){
   srandc(RAND_SEED);
 }
 
+/**
+   @fn     void checkIntegrityOfFirmware(void)
+   @brief  fgunction to check firmware
+   @note   for right function is nessesary to program firmware with external 
+           programmer (CM3WSD) tool from .hex file located in obj folder
+   @code   ::code in conv.bat
+   @pre    for right generation of .hex file must be call script conv.bat located in Integrity folder
+*/
+void checkIntegrityOfFirmware(void){
+  #define BEGIN_OF_CODE_MEMORY 0x0  //code 
+  #define LENGHT_OF_CODE_MEMORY   0x20000
+/*
+512*256 = 131072 = 0x20000
+*/
+  uint8_t *code = (uint8_t *)BEGIN_OF_CODE_MEMORY;   // Smernik na zaciatok kodu programu kodovej pamate
+  
+  uint8_t buff[512];
+  crc retval;
+  
+  //crcInit();
+  retval = crcSlow(code,LENGHT_OF_CODE_MEMORY);
+  
+  if (retval == 0){
+    printf("\nintegrity check ok\n");
+    LED_ON;
+  }
+  else{
+    printf("\nproblem in integrity of firmware\n");  
+    LED_OFF;
+    //while(1);
+  }
+}
+
 /** 
    @fn     int main(void)
    @brief  main function of slave program
@@ -572,7 +605,8 @@ int main(void)
   memset(lenghtOfPkt, 0, (NUM_OF_PACKETS_IN_MEMORY*2));
   memset(pktMemory, 0, (NUM_OF_PACKETS_IN_MEMORY*PACKET_MEMORY_DEPTH*2));
   WdtGo(T3CON_ENABLE_DIS);    //stop watch-dog
-
+  checkIntegrityOfFirmware();
+    
   //initialize all interfaces
   SetInterruptPriority();
   uart_init();

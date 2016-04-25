@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-6-g999f8d6
+   @version     'V2.2'-8-g41db737
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        22.04.2016(DD.MM.YYYY)
+   @date        25.04.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -299,6 +299,15 @@ uint8_t rf_printf(const char * format /*format*/, ...){
   return len;
 }
 
+/** 
+   @fn     void binToHexa(uint8_t* from, uint8_t* to, uint16_t len )
+   @brief  function to converting binarz data to ASCII chars for hexadecimal system
+   @param  uint8_t* from : pointer at binary data in memory
+   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
+   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
+   @note   output lenght in destination memory place is double lenght as source lenght
+**/
+/*
 void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
   uint16_t i;
@@ -316,8 +325,8 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
     to++;                 //increment pointer
     from++;
   }
-}
-/*
+}*/
+
 void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
   uint8_t ch;
   uint16_t i;
@@ -331,14 +340,15 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
       ch += 7;
     to[(i*2)] = ch;
   }
-}*/
+}
+
 void setTransfer(void){
   if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
     if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet itete 0..as needed
       
       dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
       
-      if(dmaTxPtr[1]!='w'){                    //try if packet is received waiting flag
+      if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag
         
         #if BINARY_MODE
           dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
@@ -707,10 +717,17 @@ void SetInterruptPriority (void){
   NVIC_SetPriority(UART_IRQn,2);          //receiving directives (short messages)
   NVIC_SetPriority(EINT8_IRQn,1);         //highest priority for radio interupt
 }
-
-uint8_t checkIntegrityOfFirmware(void){
+/**
+   @fn     void checkIntegrityOfFirmware(void)
+   @brief  fgunction to check firmware
+   @note   for right function is nessesary to program firmware with external 
+           programmer (CM3WSD) tool from .hex file located in obj folder
+   @code   ::code in conv.bat
+   @pre    for right generation of .hex file must be call script conv.bat located in Integrity folder
+*/
+void checkIntegrityOfFirmware(void){
   #define BEGIN_OF_CODE_MEMORY 0x0  //code 
-  #define END_OF_CODE_MEMORY   0x20000
+  #define LENGHT_OF_CODE_MEMORY   0x20000
 /*
 512*256 = 131072 = 0x20000
 */
@@ -718,32 +735,21 @@ uint8_t checkIntegrityOfFirmware(void){
   
   uint8_t buff[512];
   crc retval;
-  uint16_t i,j;
   
-  crcInit();
-  
-  for(i=0; i < 256; i++){
-    for(j=0; j < 512; j++){
-      buff[j] = *code++;
-    }
-    if(i==255)
-      LED_OFF;
-    retval = crcFast(buff,512);
-  }
+  //crcInit();
+  retval = crcSlow(code,LENGHT_OF_CODE_MEMORY);
   
   if (retval == 0){
-    dma_printf("integrity check ok");
+    printf("\nintegrity check ok\n");
     LED_ON;
-    //while(1);
-    return TRUE;
   }
   else{
-    dma_printf("problem in integrity of firmware");
+    printf("\nproblem in integrity of firmware\n");  
     LED_OFF;
     //while(1);
-    return FALSE;
   }
 }
+
 /** 
    @fn     int main(void)
    @brief  main function of master program

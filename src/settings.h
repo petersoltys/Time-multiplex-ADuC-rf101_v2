@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-6-g999f8d6
+   @version     'V2.2'-8-g41db737
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        22.04.2016(DD.MM.YYYY) 
+   @date        25.04.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -323,9 +323,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-6-g999f8d6
+	- Version:  'V2.2'-8-g41db737
 	- Hardware: ADucRF101MKxZ
-	- Date:       22.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       25.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

@@ -40,7 +40,7 @@
 #define REFLECT_REMAINDER(X)	(X)
 #endif
 
-crc	remainder = INITIAL_REMAINDER;
+
 /*********************************************************************
  *
  * Function:    reflect()
@@ -53,11 +53,11 @@ crc	remainder = INITIAL_REMAINDER;
  * Returns:		The reflection of the original data.
  *
  *********************************************************************/
-static unsigned long reflect(unsigned long datat, unsigned char nBits)
+static unsigned long
+reflect(unsigned long datat, unsigned char nBits)
 {
 	unsigned long  reflection = 0x00000000;
 	unsigned char  bitt;
-  
 
 	/*
 	 * Reflect the data about the center bit.
@@ -91,9 +91,10 @@ static unsigned long reflect(unsigned long datat, unsigned char nBits)
  * Returns:		The CRC of the message.
  *
  *********************************************************************/
-crc crcSlow(unsigned char const message[], int nBytes)
+crc
+crcSlow(unsigned char const message[], int nBytes)
 {
-  //crc            remainder = INITIAL_REMAINDER;
+    crc            remainder = INITIAL_REMAINDER;
 	int            byte;
 	unsigned char  bitt;
 
@@ -151,9 +152,10 @@ crc  crcTable[256];
  * Returns:		None defined.
  *
  *********************************************************************/
-void crcInit(void)
+void
+crcInit(void)
 {
-  //crc			   remainder;
+    crc			   remainder;
 	int			   dividend;
 	unsigned char  bitt;
 
@@ -191,7 +193,7 @@ void crcInit(void)
          */
         crcTable[dividend] = remainder;
     }
-  remainder = INITIAL_REMAINDER;
+
 }   /* crcInit() */
 
 
@@ -206,11 +208,12 @@ void crcInit(void)
  * Returns:		The CRC of the message.
  *
  *********************************************************************/
-crc crcFast(unsigned char const message[], int nBytes)
+crc
+crcFast(unsigned char const message[], int nBytes)
 {
-    //crc            remainder = INITIAL_REMAINDER;
+    crc	           remainder = INITIAL_REMAINDER;
     unsigned char  datat;
-    int            byte;
+	int            byte;
 
 
     /*
