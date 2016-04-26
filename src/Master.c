@@ -8,7 +8,7 @@
 
              
 
-   @version     'V2.2'-8-g41db737
+   @version     'V2.2'-9-gc3ad1a6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        25.04.2016(DD.MM.YYYY)
@@ -720,16 +720,17 @@ void SetInterruptPriority (void){
 /**
    @fn     void checkIntegrityOfFirmware(void)
    @brief  fgunction to check firmware
-   @note   for right function is nessesary to program firmware with external 
+   @note   for right function is nessesary to download firmware with external 
            programmer (CM3WSD) tool from .hex file located in obj folder
+   @note   programmer CM3WSD is located in "Integrity" folder
    @code   ::code in conv.bat
-   @pre    for right generation of .hex file must be call script conv.bat located in Integrity folder
+   @pre    for right generation of .hex file must be call script Integrity.bat located in Integrity folder
 */
 void checkIntegrityOfFirmware(void){
-  #define BEGIN_OF_CODE_MEMORY 0x0  //code 
-  #define LENGHT_OF_CODE_MEMORY   0x20000
+  #define BEGIN_OF_CODE_MEMORY    0x0  
+  #define LENGHT_OF_CODE_MEMORY   0x20000 //end of code memory
 /*
-512*256 = 131072 = 0x20000
+512(bytes is one page)*256(pages) = 131072 = 0x20000
 */
   uint8_t *code = (uint8_t *)BEGIN_OF_CODE_MEMORY;   // Smernik na zaciatok kodu programu kodovej pamate
   
@@ -744,7 +745,7 @@ void checkIntegrityOfFirmware(void){
     LED_ON;
   }
   else{
-    printf("\nproblem in integrity of firmware\n");  
+    printf("\nproblem in integrity of firmware \n");  
     LED_OFF;
     //while(1);
   }
@@ -754,7 +755,7 @@ void checkIntegrityOfFirmware(void){
    @fn     int main(void)
    @brief  main function of master program
    @note   Program is using time multiplex to receive data from 4 slave devices
-   @return  int 
+   @return int 
 **/
 int main(void)
 { 

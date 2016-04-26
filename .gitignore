@@ -17,6 +17,10 @@ documentation/doxygen/*
 documentation/doxygen/latex/*
 !documentation/doxygen/latex/refman.pdf
 
+#J-link files
+*JLinkLog.txt
+*JLink*
+
 
 # Keil files
 *.i
@@ -43,10 +47,6 @@ documentation/doxygen/latex/*
 .#*
 *.uvgui.*
 *.uvopt
-
-#J-link files
-JLinkLog.txt
-JLinkLog
 
 read me.txt
 
@@ -79,7 +79,7 @@ obj
 *.dylib
 
 # Executables
-*.exe
+# *.exe
 *.out
 *.app
 *.i*86
@@ -88,3 +88,4 @@ obj
 
 # Debug files
 *.dSYM/
+JLinkLog.txt

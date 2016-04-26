@@ -9,7 +9,7 @@
 
              
 
-   @version     'V2.2'-8-g41db737
+   @version     'V2.2'-9-gc3ad1a6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        25.04.2016(DD.MM.YYYY) 
@@ -565,7 +565,7 @@ void random_init(void){
    @note   for right function is nessesary to program firmware with external 
            programmer (CM3WSD) tool from .hex file located in obj folder
    @code   ::code in conv.bat
-   @pre    for right generation of .hex file must be call script conv.bat located in Integrity folder
+   @pre    for right generation of .hex file must be call script Integrity.bat located in Integrity folder
 */
 void checkIntegrityOfFirmware(void){
   #define BEGIN_OF_CODE_MEMORY 0x0  //code 

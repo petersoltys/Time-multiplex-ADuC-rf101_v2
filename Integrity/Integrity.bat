@@ -1,4 +1,4 @@
-::file     conv.bat - automatic version control script
+::file     Integrity.bat - automatic version control script
 ::brief    batch script for windows used to conversion of *.hex file for ADuc rf101 
 ::
 ::

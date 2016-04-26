@@ -14,7 +14,7 @@ number of commits in actual version |
                                     git commit number
 
 
-file     avc - automatic version control
+file     rev - revision control bath script
 brief    batch script for windows used to find and repace string in *.h, *.md and *.c files
          automaticaly changing version and date in files
 

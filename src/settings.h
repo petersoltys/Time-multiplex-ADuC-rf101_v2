@@ -4,7 +4,7 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-8-g41db737
+   @version     'V2.2'-9-gc3ad1a6
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        25.04.2016(DD.MM.YYYY) 
@@ -142,7 +142,6 @@
            All received data in slave are stored together
            
            In (normal) string mode packets are terminated with STRING_TERMINATOR
-    @bug    not entirely verified (still bugs)
     @param  bool :{1 , 0}
          - 1 if Binary mode
          - 0 if String mode.
@@ -177,15 +176,14 @@
  /**
     @brief  number of expected slave devices
     @note   number is restricted by size of memory
-            macro set greatness of packet memory
+            macro set size of packet memory
     @param  number of slave devices :{1 , 10} 4
  **/
 #define NUM_OF_SLAVE 4  //number of slave devices
 
  /**
     @brief  lenght of received packets from UART
-    @note   macro set greatness of packet memory
-    @bug    constant lenght not entirely verified (still bugs)
+    @note   macro set size of packet memory
     @param  bool :{0 , 240}
           - 0 if variable lenght of packets
           - 1-240 constant lenght of packets
@@ -323,7 +321,7 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-8-g41db737
+	- Version:  'V2.2'-9-gc3ad1a6
 	- Hardware: ADucRF101MKxZ
 	- Date:       25.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
