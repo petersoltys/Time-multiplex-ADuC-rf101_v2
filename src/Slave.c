@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-9-gc3ad1a6
+   @version     'V2.2'-11-g5fa1c05
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        25.04.2016(DD.MM.YYYY) 
+   @date        02.05.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -425,11 +425,7 @@ uint8_t transmit(void){
     pktMemoryPtr[0] = SLAVE_ID + CHAR_OFFSET; 
 
     //dma_printf(pktMemoryPtr);
-    #if BINARY_MODE
     radioSend(pktMemoryPtr,(lenghtOfPkt[actualTxBuffer][txPkt]+HEAD_LENGHT));//send packet
-    #else
-    rf_printf(pktMemoryPtr);    //send packet
-    #endif
     
     txPkt++;
   }
@@ -451,11 +447,7 @@ uint8_t retransmit(void){
   //retransmit only until interupt occur
   while ((reTxPkt[pkt]!='\0') && my_slot==TRUE && terminate_flag == FALSE)
   {
-    #if BINARY_MODE
     radioSend(&pktMemory[actualTxBuffer][pkt][0],(lenghtOfPkt[actualTxBuffer][pkt]+3));
-    #else 
-    rf_printf(&pktMemory[actualTxBuffer][(reTxPkt[pkt]-CHAR_OFFSET)][0]);
-    #endif
     pkt++;
   }
   return (pkt-3);
@@ -562,31 +554,35 @@ void random_init(void){
 /**
    @fn     void checkIntegrityOfFirmware(void)
    @brief  fgunction to check firmware
-   @note   for right function is nessesary to program firmware with external 
+   @note   for right function is nessesary to download firmware with external 
            programmer (CM3WSD) tool from .hex file located in obj folder
+   @note   programmer CM3WSD is located in "Integrity" folder
    @code   ::code in conv.bat
    @pre    for right generation of .hex file must be call script Integrity.bat located in Integrity folder
 */
 void checkIntegrityOfFirmware(void){
-  #define BEGIN_OF_CODE_MEMORY 0x0  //code 
-  #define LENGHT_OF_CODE_MEMORY   0x20000
+  #define BEGIN_OF_CODE_MEMORY    (uint8_t *)0x0  // pointer at begining of code memory
+  #define LENGHT_OF_CODE_MEMORY   0x20000         // end of code memory
 /*
-512*256 = 131072 = 0x20000
+512(bytes is one page)*256(pages) = 131072 = 0x20000
 */
-  uint8_t *code = (uint8_t *)BEGIN_OF_CODE_MEMORY;   // Smernik na zaciatok kodu programu kodovej pamate
-  
-  uint8_t buff[512];
+
   crc retval;
   
-  //crcInit();
-  retval = crcSlow(code,LENGHT_OF_CODE_MEMORY);
+  #if CRC_FAST
+    crcInit();
+  //the reason why use crcSlow is that crcFast is using much more memory
+    retval = crcFast(BEGIN_OF_CODE_MEMORY,LENGHT_OF_CODE_MEMORY);
+  #else
+    retval = crcSlow(BEGIN_OF_CODE_MEMORY,LENGHT_OF_CODE_MEMORY);
+  #endif
   
   if (retval == 0){
     printf("\nintegrity check ok\n");
     LED_ON;
   }
   else{
-    printf("\nproblem in integrity of firmware\n");  
+    printf("\nproblem in integrity of firmware \n");  
     LED_OFF;
     //while(1);
   }
@@ -724,7 +720,7 @@ void DMA_UART_RX_Int_Handler   ()
 uint8_t ch1, ch2;
   
   UrtDma(0,0); // prevents additional byte to restart DMA transfer
-  #if BINARY_MODE
+
   rxUARTcount += LEN_OF_RX_PKT;   //count received data
   
   //check place in memory
@@ -756,18 +752,6 @@ uint8_t ch1, ch2;
     else
       memory_full_flag = TRUE;
   }
-  #else       //normal mode (does not append data to packets)
-  //pinter to point at new place in memory pointing beyound packet head
-  rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
-  memcpy(rxPktPtr,rxUARTbuffer,LEN_OF_RX_PKT);    //copy buffer to mmory
-  rxPktPtr = rxUARTbuffer;
-  
-  //if is buffered more than 10 packets dont increment and overwrite last packet
-  if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
-    numOfPkt[actualRxBuffer]++;
-  else
-    memory_full_flag = TRUE;
-  #endif
   
   //enable RX DMA chanel for receiving next packets forom UART
   DmaChanSetup(UARTRX_C,ENABLE,ENABLE);   // Enable DMA channel  
@@ -810,21 +794,12 @@ void UART_Int_Handler (void)
     rxUARTbuffer[rxUARTcount]= ch;
     rxUARTcount++;
     
-    #if BINARY_MODE
     if (rxUARTcount >= (PACKET_MEMORY_DEPTH-HEAD_LENGHT)){          //packt full
       if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
         rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];   //pinting beyound packet head
         memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);
         lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;
         numOfPkt[actualRxBuffer]++;
-    #else
-    if (ch == STRING_TERMINATOR){         //end of packet pointer
-      rxUARTbuffer[rxUARTcount]= '\0';    //write end of string
-      if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){
-        rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];   //pinting beyound packet head
-        strcpy(rxPktPtr,rxUARTbuffer);
-        numOfPkt[actualRxBuffer]++;     
-    #endif
       }
       else
         dma_printf("packet memory is full ");

@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-9-gc3ad1a6
+   @version     'V2.2'-11-g5fa1c05
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        25.04.2016(DD.MM.YYYY)
+   @date        02.05.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -350,13 +350,8 @@ void setTransfer(void){
       
       if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag
         
-        #if BINARY_MODE
-          dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
-        #else
-          while(dmaTxPtr[dmaTxLen]!='\0'){          //get lenght of packet
-            dmaTxLen++;
-          }
-        #endif
+        dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
+
         #if HEXA_TRANSFER
           binToHexa(dmaTxPtr,dmaTxBuffer,dmaTxLen);
         #endif
@@ -517,12 +512,9 @@ void copyBufferToMemory(void){
       dmaSend(" s ",3);
       //dma_printf("saving actualPacket %d ",actualPacket);
   #endif
-  #if BINARY_MODE
+  
   memcpy((&pktMemory[actualRxBuffer][actualPacket-1][0]),Buffer,PktLen);//copy packet to memory
   lenghtOfPkt[actualRxBuffer][actualPacket-1] = PktLen;
-  #else
-  strcpy(&pktMemory[actualRxBuffer][actualPacket-1][0],Buffer);//copy packet to memory
-  #endif
 }
 /** 
    @fn     void ifMissPktGet(void)
@@ -727,18 +719,21 @@ void SetInterruptPriority (void){
    @pre    for right generation of .hex file must be call script Integrity.bat located in Integrity folder
 */
 void checkIntegrityOfFirmware(void){
-  #define BEGIN_OF_CODE_MEMORY    0x0  
-  #define LENGHT_OF_CODE_MEMORY   0x20000 //end of code memory
+  #define BEGIN_OF_CODE_MEMORY    (uint8_t *)0x0  // pointer at begining of code memory
+  #define LENGHT_OF_CODE_MEMORY   0x20000         // end of code memory
 /*
 512(bytes is one page)*256(pages) = 131072 = 0x20000
 */
-  uint8_t *code = (uint8_t *)BEGIN_OF_CODE_MEMORY;   // Smernik na zaciatok kodu programu kodovej pamate
-  
-  uint8_t buff[512];
+
   crc retval;
   
-  //crcInit();
-  retval = crcSlow(code,LENGHT_OF_CODE_MEMORY);
+  #if CRC_FAST
+    crcInit();
+  //the reason why use crcSlow is that crcFast is using much more memory
+    retval = crcFast(BEGIN_OF_CODE_MEMORY,LENGHT_OF_CODE_MEMORY);
+  #else
+    retval = crcSlow(BEGIN_OF_CODE_MEMORY,LENGHT_OF_CODE_MEMORY);
+  #endif
   
   if (retval == 0){
     printf("\nintegrity check ok\n");

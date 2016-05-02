@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-9-gc3ad1a6
+   @version     'V2.2'-11-g5fa1c05
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        25.04.2016(DD.MM.YYYY) 
+   @date        02.05.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -136,17 +136,14 @@
 * Common settings
 */
  /**
-    @brief Enable or Disable binary mode
-
-           Binary mode is transmitting data packets in maximal lenght 240
-           All received data in slave are stored together
-           
-           In (normal) string mode packets are terminated with STRING_TERMINATOR
+    @brief  set function to calculate CRC sum
+    @note   the reason why use crcSlow is that crcFast is using much more memory       
     @param  bool :{1 , 0}
-         - 1 if Binary mode
-         - 0 if String mode.
+         - 1 if crcFast
+         - 0 if crcSlow
  **/
-#define BINARY_MODE 1
+#define CRC_FAST 1
+
 
  /**
     @brief  char witch terminate all received packets     
@@ -321,9 +318,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-9-gc3ad1a6
+	- Version:  'V2.2'-11-g5fa1c05
 	- Hardware: ADucRF101MKxZ
-	- Date:       25.04.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       02.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
