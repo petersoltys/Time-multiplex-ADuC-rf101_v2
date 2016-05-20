@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-11-g5fa1c05
+   @version     
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        02.05.2016(DD.MM.YYYY) 
+   @date        21.05.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 

@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-11-g5fa1c05
+   @version     
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        02.05.2016(DD.MM.YYYY)
+   @date        21.05.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -43,7 +43,7 @@
 
 
 RIE_Responses  RIE_Response = RIE_Success;
-uint8_t  Buffer[PACKETRAM_LEN];
+uint8_t        Buffer[PACKETRAM_LEN];
 RIE_U8         PktLen;
 RIE_S8         RSSI;
 
@@ -76,10 +76,11 @@ uint8_t actualPacket;
 int8_t actualRxBuffer=0,actualTxBuffer=1;
 
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
-uint8_t dmaTxBuffer[(PACKET_MEMORY_DEPTH*2)];    //buffer for DMA TX UART channel
+uint8_t dmaTxBuffer[2][(PACKET_MEMORY_DEPTH*2)];        //buffer for DMA TX UART channel
+uint8_t dmaTxPingPong = 0;                              //ping pong pointer in dmaTxBuffer
 #define UART_BUFFER_DEEP 50
 uint8_t rxBuffer[UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
-
+uint8_t dmaMessageBuffer[UART_BUFFER_DEEP]; 
 
 uint8_t slave_ID = 1;   //Slave ID
 int8_t send=FALSE;
@@ -187,8 +188,8 @@ void radioInit(void){
    @pre    uartInit() must be called before this can be called.
    @code  
         uartInit();
-        len =vsprintf(dmaTxBuffer, format,args);//vlozenie formatovaneho retazca do buff
-        dmaSend(dmaTxBuffer,len);
+        len =vsprintf(dmaMessageBuffer, format,args);//vlozenie formatovaneho retazca do buff
+        dmaSend(dmaMessageBuffer,len);
    @endcode
    @note    after end of transmision is called DMA_UART_TX_Int_Handler (void)
    @see DMA_UART_TX_Int_Handler
@@ -196,7 +197,7 @@ void radioInit(void){
 void  dmaSend(void* buff, int len){
   //DMA UART stream
   DmaInit();
-  DmaTransferSetup(UARTTX_C,len,buff);
+  DmaTransferSetup(UARTTX_C, len, buff);
   DmaChanSetup(UARTTX_C,ENABLE,ENABLE);   // Enable DMA channel  
   UrtDma(0,COMIEN_EDMAT);
 }
@@ -222,8 +223,8 @@ uint16_t dma_printf(const char * format /*format*/, ...)
   va_list args;
   va_start( args, format );
    
-  len = vsprintf((char*)dmaTxBuffer, format,args);    //vlozenie formatovaneho retazca do buff
-  dmaSend(dmaTxBuffer,len);
+  len = vsprintf((char*)dmaMessageBuffer, format,args);    //vlozenie formatovaneho retazca do buff
+  dmaSend(dmaMessageBuffer,len);
 
   va_end( args );
   return len;
@@ -255,7 +256,7 @@ void radioSend(void* buff, uint8_t len){
     while(!RadioTxPacketComplete());
   }
   
-  if (RIE_Response == RIE_Success){   //start again receiving mod
+  if (RIE_Response == RIE_Success){   //set again receiving state
     RIE_Response = RadioRxPacketVariableLen(); 
     RX_flag = TRUE;
   }
@@ -316,7 +317,7 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
     if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
       *to += 7;
     
-    to++;                 //increment pointer
+    to++;                  //increment pointer
     
     *to = (*from & 0x0f) + '0';
     if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
@@ -344,7 +345,7 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
 void setTransfer(void){
   if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
-    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet itete 0..as needed
+    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet iterate 0..as needed
       
       dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
       
@@ -353,7 +354,7 @@ void setTransfer(void){
         dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
 
         #if HEXA_TRANSFER
-          binToHexa(dmaTxPtr,dmaTxBuffer,dmaTxLen);
+          binToHexa(dmaTxPtr,&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen);
         #endif
           
         dmaTxReady = TRUE;
@@ -505,6 +506,7 @@ uint8_t validPacket(void){
    @note   function save packet at place defined in packet head
 **/
 void copyBufferToMemory(void){
+  uint8_t* buf = &pktMemory[actualRxBuffer][actualPacket-1][0];
   //extracting number of actual packets
   actualPacket = Buffer[1]-CHAR_OFFSET;
   
@@ -513,7 +515,7 @@ void copyBufferToMemory(void){
       //dma_printf("saving actualPacket %d ",actualPacket);
   #endif
   
-  memcpy((&pktMemory[actualRxBuffer][actualPacket-1][0]),Buffer,PktLen);//copy packet to memory
+  memcpy(buf,Buffer,PktLen);//copy packet to memory
   lenghtOfPkt[actualRxBuffer][actualPacket-1] = PktLen;
 }
 /** 
@@ -581,8 +583,10 @@ void ifMissPktGet(void)
 void flushBufferedPackets(void){
   uint16_t counter=0;
   //wait untill all packets are flushed
-  while(flush_flag==TRUE)
+  while(flush_flag==TRUE){
+    setTransfer();
     counter++;
+  }
   if (counter)
     counter=0;
   //switch buffer 
@@ -667,7 +671,6 @@ int8_t receivePackets(void){
       if ((actualPacket >= numOfPkt[actualRxBuffer]))
         return received;
     }
-    
     else {                  //try retransmit again if no one received packet 
       if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
@@ -840,9 +843,13 @@ void DMA_UART_TX_Int_Handler (void)
   if (dmaTxReady == TRUE){
     #if HEXA_TRANSFER
       #if SEND_HEAD
-        dmaSend(dmaTxBuffer,dmaTxLen*2);        //send data with head
+        dmaSend(&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen*2);        //send data with head
       #else
-        dmaSend(dmaTxBuffer+HEAD_LENGHT, (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
+        dmaSend(&dmaTxBuffer[dmaTxPingPong][0]+HEAD_LENGHT, (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
+        if (dmaTxPingPong > 0)//change ping pong buffer
+          dmaTxPingPong = 0;
+        else
+          dmaTxPingPong = 1;
       #endif
     #else
       #if SEND_HEAD
