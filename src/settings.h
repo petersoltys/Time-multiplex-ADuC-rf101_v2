@@ -4,7 +4,7 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-14-gf471574
+   @version     'V2.2'-15-gaba903a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY) 
@@ -209,7 +209,7 @@
     @see    T_TIMEOUT
     @param  (uint8_t) 0 - 255 
  **/
-#define RX_PKT_TOUT_CNT 5
+#define RX_PKT_TOUT_CNT 20
 
 /*******************************************************************************
 * Master interface settings
@@ -320,7 +320,7 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-14-gf471574
+	- Version:  'V2.2'-15-gaba903a
 	- Hardware: ADucRF101MKxZ
 	- Date:       26.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101

@@ -162,6 +162,8 @@ RIE_Responses RadioRxPacketVariableLen  (void);
 // Added in Radio Interface Engine v0.5
 RIE_Responses RadioDeInit               (void);
 
+// Added by Peter Soltys
+RIE_Responses RadioHWreset              (void);
 
 
 

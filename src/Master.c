@@ -8,7 +8,7 @@
 
              
 
-   @version     'V2.2'-14-gf471574
+   @version     'V2.2'-15-gaba903a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY)
@@ -39,7 +39,6 @@
 
 #define LED_OFF DioSet(pADI_GP4,BIT2)   //led off
 #define LED_ON  DioClr(pADI_GP4,BIT2)   //led on
-
 
 
 RIE_Responses  RIE_Response = RIE_Success;
@@ -334,7 +333,7 @@ uint8_t rf_printf(const char * format /*format*/, ...){
    @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
    @note   output lenght in destination memory place is double lenght as source lenght
 **/
-/*
+
 void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
   uint16_t i;
@@ -352,8 +351,8 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
     to++;                 //increment pointer
     from++;
   }
-}*/
-
+}
+/*
 void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
   uint8_t ch;
   uint16_t i;
@@ -367,7 +366,7 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
       ch += 7;
     to[(i*2)] = ch;
   }
-}
+}*/
 
 void setTransfer(void){
   if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
@@ -422,12 +421,16 @@ uint8_t radioRecieve(void){
     RX_flag = TRUE;
     rxPAcketTOut=0;
   }
+  //watchdog at radio interface
   if (rxPAcketTOut > RX_PKT_TOUT_CNT){
-    RadioTerminateRadioOp();
-    RadioDeInit();
-  RadioPowerOff();
+    
+    if (RIE_Response == RIE_Success)
+      RIE_Response = RadioHWreset();
+    
     radioInit();
-    RIE_Response = RadioRxPacketVariableLen();
+
+    if (RIE_Response == RIE_Success)
+      RIE_Response = RadioRxPacketVariableLen();
     RX_flag = TRUE;
     rxPAcketTOut=0;
   }
@@ -443,6 +446,7 @@ uint8_t radioRecieve(void){
         return 0;
       }
     }
+    rxPAcketTOut = 0;
     RX_flag=FALSE;
   }
   
@@ -680,9 +684,12 @@ uint8_t zeroPacket(void){
    @note   function si also retransmitin slot ID packtes if no response
 **/
 int8_t receivePackets(void){
-  char retransmision=0;     //number of retransmision attempt
-  char received = 0;        //number of received valid packets
-  char count = 0;
+  uint8_t retransmision=0;     //number of retransmision attempt
+  uint8_t received = 0;        //number of received valid packets
+  uint8_t unsuccessfulCounter = NUM_OF_PACKETS_IN_MEMORY;
+  
+  //send slot identificator
+  rf_printf(TIME_SLOT_ID_MASTER);   //start packet for new multiplex
   
   while (1){                //loop for receiving all expecting packets
     
@@ -708,11 +715,17 @@ int8_t receivePackets(void){
         else{                                //if nothing after RETRANSMISION times
           return 0;
         }
+      }else{
+        //if no receiving more packets
+        if ((int16_t)(pktMemory[actualRxBuffer].numOfPkt - (received + unsuccessfulCounter)) <= 0 )
+          return -unsuccessfulCounter;     //missing some packets
+        else
+          unsuccessfulCounter++;
       }
     }
-    if (firstRxPkt == TRUE)
-      if (count >= pktMemory[actualRxBuffer].numOfPkt)
-        return -1;                          //missing some packets
+//    if (firstRxPkt == TRUE)
+//      if (count >= pktMemory[actualRxBuffer].numOfPkt)
+//        return -1;                          //missing some packets
   }
 }
 /** 
@@ -885,7 +898,7 @@ void checkIntegrityOfFirmware(void){
 int main(void)
 { 
   
-  
+
   WdtGo(T3CON_ENABLE_DIS);
   memset(pktMemory, 0, sizeof(pktMemory));  
   
@@ -900,9 +913,7 @@ int main(void)
 
   while(1)
   {
-    //send slot identificator
-    rf_printf(TIME_SLOT_ID_MASTER);   //start packet for new multiplex
-
+    
     if (receivePackets()){            //if some data packets are received
       #if DEBUG_MESAGES
         dma_printf("redeived %d pkts ", numOfPkt[actualRxBuffer]);

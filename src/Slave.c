@@ -9,7 +9,7 @@
 
              
 
-   @version     'V2.2'-14-gf471574
+   @version     'V2.2'-15-gaba903a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY) 
