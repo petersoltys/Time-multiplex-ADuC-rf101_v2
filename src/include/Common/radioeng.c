@@ -1777,4 +1777,28 @@ RIE_Responses RadioTxSetPower (RIE_PAPowerLevel Power)
       }
    return Response;
 }
+/** 
+   @fn     RIE_Responses RadioHWreset(void)   
+   @brief  Reset radio interface at hardware level
+   @pre    RadioInit() must be called before this function is called.
+   @code    
+      Response = RadioHWreset();
+   @endcode
+   @note    function added by Peter Soltys by hard radio interface issue
+   @note    this function is reseting wardware when occured some issue
+   @return  RIE_Responses  Error code
+*/
+RIE_Responses RadioHWreset(void){
+  RIE_Responses  Response = RIE_Success;
 
+  if(Response == RIE_Success)
+    Response = RadioSendCommandWait(CMD_HW_RESET);
+  RadioPowerOff();
+  RADIO_CSN_ASSERT;
+  while(!RADIO_MISO_IN);
+  if (Response == RIE_Success)
+    Response = RadioWaitOnState   (FW_OFF);
+  if(Response == RIE_Success)
+    RadioWaitOnCmdLdr();
+  //now is nesessary to initialize radio controller
+}
