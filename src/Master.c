@@ -8,10 +8,10 @@
 
              
 
-   @version     
+   @version     'V2.2'-13-gd6efa72
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        21.05.2016(DD.MM.YYYY)
+   @date        26.05.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -99,6 +99,24 @@ int8_t   dmaTx_flag = FALSE;    /*!< @brief flag about transmitting operation */
 int8_t   dmaTxReady = FALSE;    /*!< @brief flag mean that all variables are set for transmit */
 uint8_t  dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
 uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
+
+#if CHECK_RANDOM
+//to ensure arrangement variables in byte by byte grid structure (without "bubles")
+//is used directive #pragma pack(1)
+#pragma pack(1)
+struct rand_pkt {
+  char  Slave;
+  char  slave_id;
+  uint32_t  randomPktNum;
+  #if WEEAK_RANDOM_FUNCTION == 1
+  static unsigned long next;    //variable for PRNG
+  #else
+  long next;                    //variable for PRNG
+  #endif
+  int   rnadom;
+} random_pkt[NUM_OF_SLAVE];  
+
+#endif
 
 void DMA_UART_TX_Int_Handler (void);
 
@@ -396,13 +414,13 @@ uint8_t radioRecieve(void){
     RX_flag = TRUE;
     rxPAcketTOut=0;
   }
-  if (rxPAcketTOut > RX_PKT_TOUT_CNT){
+/*  if (rxPAcketTOut > RX_PKT_TOUT_CNT){
     RadioTerminateRadioOp();
     radioInit();
     RIE_Response = RadioRxPacketVariableLen();
     RX_flag = TRUE;
     rxPAcketTOut=0;
-  }
+  }*/
 
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
@@ -712,6 +730,104 @@ void SetInterruptPriority (void){
   NVIC_SetPriority(UART_IRQn,2);          //receiving directives (short messages)
   NVIC_SetPriority(EINT8_IRQn,1);         //highest priority for radio interupt
 }
+
+
+/** 
+   @fn     void srandc(unsigned int seed)
+   @brief  function is setting initial value of PRNG
+   @see    randc(void)
+**/
+void srandc(unsigned int seed , struct rand_pkt* random_packet)
+{
+  #if WEEAK_RANDOM_FUNCTION == 1
+  random_packet.next = seed;
+  #else
+  random_packet->next = (long)seed;
+  #endif
+}
+/** 
+   @fn     int randc(void)
+   @brief  PRNG function of linear kongurent generator
+   @note   before first fun should be initialized seed value
+   @note   PRNG values can change by macro WEEAK_RANDOM_FUNCTION
+   @see    WEEAK_RANDOM_FUNCTION
+   @see    srandc()
+   @return int - rnadom number
+**/
+int randc(struct rand_pkt* random_packet) // RAND_MAX assumed to be 32767
+{
+  #if WEEAK_RANDOM_FUNCTION == 1
+  //official ANSI implementation
+    random_packet->next = random_packet->next * 1103515245 + 12345;
+    return (unsigned int)(random_packet->next/65536) % 32768;
+  #else
+  //official random implementation for C from CodeGuru forum
+    return(((random_packet->next = random_packet->next * 214013L + 2531011L) >> 16) & 0x7fff);
+  #endif
+}
+
+void initializeRandomCheck(void){
+  char slave;
+  //initialize random packets
+  for (slave = 0;slave < NUM_OF_SLAVE; slave++){
+    random_pkt[slave].Slave = 'S';
+    random_pkt[slave].slave_id = slave+1;
+    random_pkt[slave].randomPktNum = 0;
+    random_pkt[slave].next = RAND_SEED;
+  }
+}
+
+void checkRandomBufferedPackets(void){
+  uint8_t packet, word;
+  uint32_t temp_pkt_num_ref, temp_pkt_num_mem;
+  struct rand_pkt *rnd_pkt_in_memory, *rnd_pkt_ref;
+  
+  for(packet = 0; packet < numOfPkt[actualRxBuffer]; packet++){
+    
+    //pointer in packet memory
+    rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer][packet][HEAD_LENGHT]; 
+    for (word = ((PACKET_MEMORY_DEPTH-PRNG_PKT_LEN)/PRNG_PKT_LEN); word > 0 ; word --){
+      //check one random word
+      if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
+        if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id
+          //initialze new random word
+          rnd_pkt_ref = &random_pkt[rnd_pkt_in_memory->slave_id-1];
+          rnd_pkt_ref->randomPktNum++;
+          rnd_pkt_ref->rnadom = randc(rnd_pkt_ref);
+          if (rnd_pkt_ref->randomPktNum == rnd_pkt_in_memory->randomPktNum){
+            if (rnd_pkt_ref->next == rnd_pkt_in_memory->next){
+              if (rnd_pkt_ref->rnadom == rnd_pkt_in_memory->rnadom){
+                //packet valid
+              }else{
+                printf("\nwrong random number");
+              }
+            }else{
+              printf("\nwrong seed number");
+            }
+          }else{
+            temp_pkt_num_ref = rnd_pkt_ref->randomPktNum;
+            temp_pkt_num_mem = rnd_pkt_in_memory->randomPktNum;
+            printf("\nmissing %d packets",(temp_pkt_num_mem - temp_pkt_num_ref));
+            //set values to synchronization
+            rnd_pkt_ref->randomPktNum = rnd_pkt_in_memory->randomPktNum;
+            rnd_pkt_ref->next = rnd_pkt_in_memory->next;
+          }
+        }else{
+          printf("\nslave number is out of range");
+        }
+      }else{
+        printf("\nwrong synchronizing of packet");
+      }
+      rnd_pkt_in_memory ++;
+    }
+  }
+  actualRxBuffer++;
+  actualTxBuffer++;
+  if(actualTxBuffer >= 2)
+    actualTxBuffer=0;
+  if(actualRxBuffer >= 2)
+    actualRxBuffer=0;
+}
 /**
    @fn     void checkIntegrityOfFirmware(void)
    @brief  fgunction to check firmware
@@ -767,6 +883,9 @@ int main(void)
   ledInit();
   radioInit();
   SetInterruptPriority ();
+  #if CHECK_RANDOM
+  initializeRandomCheck();
+  #endif
 
   while(1)
   {
@@ -778,7 +897,13 @@ int main(void)
         dma_printf("redeived %d pkts ", numOfPkt[actualRxBuffer]);
       #endif
       ifMissPktGet();                 //get back if losted some packets
+      
+      
+      #if CHECK_RANDOM == 1
+      checkRandomBufferedPackets();
+      #else
       flushBufferedPackets();         //send on UART received packets
+      #endif
     }
     
     //if synchronize message received

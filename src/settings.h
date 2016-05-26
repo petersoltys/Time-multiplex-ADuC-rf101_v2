@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     
+   @version     'V2.2'-13-gd6efa72
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        21.05.2016(DD.MM.YYYY) 
+   @date        26.05.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -305,6 +305,8 @@
           
           
 #define HEXA_TRANSFER 1
+#define CHECK_RANDOM 1
+#define PRNG_PKT_LEN 14
 
 #endif    //#ifndef __SETTINGS_H
 
@@ -318,9 +320,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  
+	- Version:  'V2.2'-13-gd6efa72
 	- Hardware: ADucRF101MKxZ
-	- Date:       21.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       26.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

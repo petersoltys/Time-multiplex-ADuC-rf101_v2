@@ -9,10 +9,10 @@
 
              
 
-   @version     
+   @version     'V2.2'-13-gd6efa72
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        21.05.2016(DD.MM.YYYY) 
+   @date        26.05.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -87,7 +87,7 @@ char PRNG_data = FALSE;   //flag to set random data generation
 struct rand_pkt {
   char  Slave;
   char  slave_id;
-  unsigned long  randomPktNum;
+  uint32_t  randomPktNum;
   #if WEEAK_RANDOM_FUNCTION == 1
   static unsigned long next;    //variable for PRNG
   #else
@@ -518,7 +518,6 @@ int randc(void) // RAND_MAX assumed to be 32767
    @note   function is turn off DMA interrupt of UART
 **/
 void fill_memory(void){
-  #define PRNG_PKT_LEN 12 
   uint8_t* pktptr;
   int len = 0,i = 1;
   NVIC_DisableIRQ ( DMA_UART_RX_IRQn );   // Disable DMA UART RX interrupt
