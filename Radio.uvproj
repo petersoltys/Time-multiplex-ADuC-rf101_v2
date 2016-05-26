@@ -955,7 +955,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>

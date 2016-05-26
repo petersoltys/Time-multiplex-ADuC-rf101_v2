@@ -8,7 +8,7 @@
 
              
 
-   @version     'V2.2'-13-gd6efa72
+   @version     'V2.2'-14-gf471574
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY)
@@ -63,6 +63,14 @@ RIE_S8         RSSI;
    @see   actualRxBuffer 
    @see   actualTxBuffer
 **/
+
+#pragma pack(1)
+struct pkt_memory {
+  uint8_t packet[NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
+  uint8_t lenghtOfPkt[NUM_OF_PACKETS_IN_MEMORY];
+  uint8_t numOfPkt;
+}pktMemory[2];
+/*
 //            [level ][ packet num.][packet data]
 uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
 
@@ -70,7 +78,7 @@ uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
 char numOfPkt[2] = {0,0};   //similar like pktMemory
                       // [level][lenght]
 uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] ;   //similar like pktMemory
-
+*/
 uint8_t actualPacket;
 
 int8_t actualRxBuffer=0,actualTxBuffer=1;
@@ -363,13 +371,13 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
 void setTransfer(void){
   if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
-    if(dmaTxPkt < (numOfPkt[actualTxBuffer])){      //packet iterate 0..as needed
+    if(dmaTxPkt < (pktMemory[actualTxBuffer].numOfPkt)){      //packet iterate 0..as needed
       
-      dmaTxPtr = &pktMemory[actualTxBuffer][dmaTxPkt][0];   //pointer at actuall packet
+      dmaTxPtr = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
       
       if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag
         
-        dmaTxLen = lenghtOfPkt[actualTxBuffer][dmaTxPkt];
+        dmaTxLen = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
 
         #if HEXA_TRANSFER
           binToHexa(dmaTxPtr,&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen);
@@ -414,13 +422,15 @@ uint8_t radioRecieve(void){
     RX_flag = TRUE;
     rxPAcketTOut=0;
   }
-/*  if (rxPAcketTOut > RX_PKT_TOUT_CNT){
+  if (rxPAcketTOut > RX_PKT_TOUT_CNT){
     RadioTerminateRadioOp();
+    RadioDeInit();
+  RadioPowerOff();
     radioInit();
     RIE_Response = RadioRxPacketVariableLen();
     RX_flag = TRUE;
     rxPAcketTOut=0;
-  }*/
+  }
 
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
@@ -483,13 +493,13 @@ uint8_t validPacket(void){
     firstRxPkt=TRUE;
     
     //extracting number of buffered TX packets
-    numOfPkt[actualRxBuffer] = pktNum;
-    if (numOfPkt[actualRxBuffer] > NUM_OF_PACKETS_IN_MEMORY)
+    pktMemory[actualRxBuffer].numOfPkt = pktNum;
+    if (pktMemory[actualRxBuffer].numOfPkt > NUM_OF_PACKETS_IN_MEMORY)
       {return 0;}
     
     //write "waiting flag"- ("w") for expected packets
-    for (i=0; i < numOfPkt[actualRxBuffer] ;i++)
-      pktMemory[actualRxBuffer][i][1]='w';
+    for (i=0; i < pktMemory[actualRxBuffer].numOfPkt ;i++)
+      pktMemory[actualRxBuffer].packet[i][1]='w';
   }
   
   if (slv != slave_ID)    //check of slave id (number) expected/transmiting
@@ -503,7 +513,7 @@ uint8_t validPacket(void){
     //if number of slave is in range
     if (slv <= NUM_OF_SLAVE && slv > 0)
         //if expected total number of packet is same as at begining
-        if (pktNum == numOfPkt[actualRxBuffer])
+        if (pktNum == pktMemory[actualRxBuffer].numOfPkt)
           return 1;
   return 0;
 }
@@ -524,7 +534,7 @@ uint8_t validPacket(void){
    @note   function save packet at place defined in packet head
 **/
 void copyBufferToMemory(void){
-  uint8_t* buf = &pktMemory[actualRxBuffer][actualPacket-1][0];
+  uint8_t* buf = &pktMemory[actualRxBuffer].packet[actualPacket-1][0];
   //extracting number of actual packets
   actualPacket = Buffer[1]-CHAR_OFFSET;
   
@@ -534,7 +544,7 @@ void copyBufferToMemory(void){
   #endif
   
   memcpy(buf,Buffer,PktLen);//copy packet to memory
-  lenghtOfPkt[actualRxBuffer][actualPacket-1] = PktLen;
+  pktMemory[actualRxBuffer].lenghtOfPkt[actualPacket-1] = PktLen;
 }
 /** 
    @fn     void ifMissPktGet(void)
@@ -549,9 +559,9 @@ void ifMissPktGet(void)
   char str2[2]={0,0};
   
 ////////check for missing packets////////////////////////////////////
-  for(i=0; i < numOfPkt[actualRxBuffer] ; i++)  //iterate throught packets
+  for(i=0; i < pktMemory[actualRxBuffer].numOfPkt ; i++)  //iterate throught packets
   {
-    ch = pktMemory[actualRxBuffer][i][1];       //extract number of packet or waiting flag
+    ch = pktMemory[actualRxBuffer].packet[i][1];       //extract number of packet or waiting flag
     #if SIMULATE_RETX
       ch='w';
     #endif
@@ -686,7 +696,7 @@ int8_t receivePackets(void){
         return 0;           //if not recognizet packet
       received ++;
       
-      if ((actualPacket >= numOfPkt[actualRxBuffer]))
+      if ((actualPacket >= pktMemory[actualRxBuffer].numOfPkt))
         return received;
     }
     else {                  //try retransmit again if no one received packet 
@@ -701,7 +711,7 @@ int8_t receivePackets(void){
       }
     }
     if (firstRxPkt == TRUE)
-      if (count >= numOfPkt[actualRxBuffer])
+      if (count >= pktMemory[actualRxBuffer].numOfPkt)
         return -1;                          //missing some packets
   }
 }
@@ -715,7 +725,7 @@ void initializeNewSlot(void){
     slave_ID = 1;
   
   firstRxPkt=FALSE;
-  numOfPkt[actualRxBuffer]= 0;
+  pktMemory[actualRxBuffer].numOfPkt= 0;
 }
 
 /** 
@@ -782,11 +792,11 @@ void checkRandomBufferedPackets(void){
   uint32_t temp_pkt_num_ref, temp_pkt_num_mem;
   struct rand_pkt *rnd_pkt_in_memory, *rnd_pkt_ref;
   
-  for(packet = 0; packet < numOfPkt[actualRxBuffer]; packet++){
+  for(packet = 0; packet < pktMemory[actualRxBuffer].numOfPkt; packet++){
     
     //pointer in packet memory
-    rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer][packet][HEAD_LENGHT]; 
-    for (word = ((PACKET_MEMORY_DEPTH-PRNG_PKT_LEN)/PRNG_PKT_LEN); word > 0 ; word --){
+    rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer].packet[packet][HEAD_LENGHT]; 
+    for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/PRNG_PKT_LEN); word > 0 ; word --){
       //check one random word
       if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
         if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id
@@ -802,7 +812,8 @@ void checkRandomBufferedPackets(void){
                 printf("\nwrong random number");
               }
             }else{
-              printf("\nwrong seed number");
+              printf("\nwrong seed number at packet number %d",rnd_pkt_ref->randomPktNum);
+              rnd_pkt_ref->next = rnd_pkt_in_memory->next;
             }
           }else{
             temp_pkt_num_ref = rnd_pkt_ref->randomPktNum;
@@ -874,9 +885,9 @@ void checkIntegrityOfFirmware(void){
 int main(void)
 { 
   
-  memset(lenghtOfPkt, 0, (NUM_OF_PACKETS_IN_MEMORY*2));
-  memset(pktMemory, 0, (NUM_OF_PACKETS_IN_MEMORY*PACKET_MEMORY_DEPTH*2));  
+  
   WdtGo(T3CON_ENABLE_DIS);
+  memset(pktMemory, 0, sizeof(pktMemory));  
   
   uartInit();
   checkIntegrityOfFirmware();

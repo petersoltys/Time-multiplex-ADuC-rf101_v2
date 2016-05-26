@@ -9,7 +9,7 @@
 
              
 
-   @version     'V2.2'-13-gd6efa72
+   @version     'V2.2'-14-gf471574
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY) 
@@ -65,6 +65,14 @@ RIE_S8         RSSI;
    @see   actualRxBuffer 
    @see   actualTxBuffer
 **/
+
+#pragma pack(1)
+struct pkt_memory {
+  uint8_t packet[NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
+  uint8_t lenghtOfPkt[NUM_OF_PACKETS_IN_MEMORY];
+  uint8_t numOfPkt;
+}pktMemory[2];
+/*
 // [level][num of packet][packet data]
 uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
 /*
@@ -74,12 +82,12 @@ uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
   1 actual sending buffer
   for pointing are used flags : actualRxBuffer, actualTxBuffer,
 */
-          // [level]
+/*         // [level]
 char numOfPkt[2] = {0,0};   //similar like pktMemory
                       // [level][lenght]
 uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY];   //similar like pktMemory
-
-char PRNG_data = FALSE;   //flag to set random data generation
+*/
+uint8_t PRNG_data = FALSE;   //flag to set random data generation
 
 //to ensure arrangement variables in byte by byte grid structure (without "bubles")
 //is used directive #pragma pack(1)
@@ -105,8 +113,8 @@ uint8_t rxUARTbuffer[255];
 uint8_t* rxPktPtr ;
 int rxUARTcount = 0;
 /////////flags/////////////////////
-char TX_flag=FALSE, RX_flag=FALSE, terminate_flag=FALSE, buffer_change_flag=0, memory_full_flag = 0 ;
-char my_slot = FALSE;
+uint8_t TX_flag=FALSE, RX_flag=FALSE, terminate_flag=FALSE, buffer_change_flag=0, memory_full_flag = 0 ;
+uint8_t my_slot = FALSE;
 
 void UART_Int_Handler (void);
 
@@ -412,20 +420,20 @@ uint8_t transmit(void){
     else if(actualTxBuffer>=2)
       actualTxBuffer=0;
     
-    numOfPkt[actualRxBuffer]=0;
+    pktMemory[actualRxBuffer].numOfPkt=0;
   NVIC_EnableIRQ(UART_IRQn);  
   
-  while (my_slot == TRUE && (txPkt < numOfPkt[actualTxBuffer]) ){     //while interupt ocurs send avaliable packets
+  while (my_slot == TRUE && (txPkt < pktMemory[actualTxBuffer].numOfPkt) ){     //while interupt ocurs send avaliable packets
     
-    pktMemoryPtr = &pktMemory[actualTxBuffer][txPkt][0];
+    pktMemoryPtr = &pktMemory[actualTxBuffer].packet[txPkt][0];
     
     //build head of packet
-    pktMemoryPtr[2] = numOfPkt[actualTxBuffer] + CHAR_OFFSET;
+    pktMemoryPtr[2] = pktMemory[actualTxBuffer].numOfPkt + CHAR_OFFSET;
     pktMemoryPtr[1] = txPkt + CHAR_OFFSET + 1;
     pktMemoryPtr[0] = SLAVE_ID + CHAR_OFFSET; 
 
     //dma_printf(pktMemoryPtr);
-    radioSend(pktMemoryPtr,(lenghtOfPkt[actualTxBuffer][txPkt]+HEAD_LENGHT));//send packet
+    radioSend(pktMemoryPtr,(pktMemory[actualTxBuffer].lenghtOfPkt[txPkt]+HEAD_LENGHT));//send packet
     
     txPkt++;
   }
@@ -447,7 +455,7 @@ uint8_t retransmit(void){
   //retransmit only until interupt occur
   while ((reTxPkt[pkt]!='\0') && my_slot==TRUE && terminate_flag == FALSE)
   {
-    radioSend(&pktMemory[actualTxBuffer][pkt][0],(lenghtOfPkt[actualTxBuffer][pkt]+3));
+    radioSend(&pktMemory[actualTxBuffer].packet[pkt][0],(pktMemory[actualTxBuffer].lenghtOfPkt[pkt]+3));
     pkt++;
   }
   return (pkt-3);
@@ -523,7 +531,7 @@ void fill_memory(void){
   NVIC_DisableIRQ ( DMA_UART_RX_IRQn );   // Disable DMA UART RX interrupt
   
   for (i = 0; i < NUM_OF_PACKETS_IN_MEMORY; i++){
-    pktptr = &pktMemory[actualRxBuffer][i][0];
+    pktptr = &pktMemory[actualRxBuffer].packet[i][0];
     len = 0;
     while(len < PACKET_MEMORY_DEPTH-HEAD_LENGHT-PRNG_PKT_LEN ){
       random_packet.randomPktNum ++;
@@ -531,8 +539,8 @@ void fill_memory(void){
       memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
       len = len + PRNG_PKT_LEN;
     }
-    lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = len;
-    numOfPkt[actualRxBuffer]++;
+    pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = len;
+    pktMemory[actualRxBuffer].numOfPkt++;
   }  
   memory_full_flag = TRUE;
   NVIC_EnableIRQ ( DMA_UART_RX_IRQn );    // Enable DMA UART RX interrupt
@@ -595,10 +603,7 @@ void checkIntegrityOfFirmware(void){
 **/
 int main(void)
 {   
-  //int rnd;
-  //double x;
-  memset(lenghtOfPkt, 0, (NUM_OF_PACKETS_IN_MEMORY*2));
-  memset(pktMemory, 0, (NUM_OF_PACKETS_IN_MEMORY*PACKET_MEMORY_DEPTH*2));
+  memset(pktMemory, 0, sizeof(pktMemory)); 
   WdtGo(T3CON_ENABLE_DIS);    //stop watch-dog
   checkIntegrityOfFirmware();
     
@@ -616,7 +621,7 @@ int main(void)
       
       //if this slot identifier belongs to this slave
       if ( 0 == strcmp((char*)Buffer,TIME_SLOT_ID_SLAVE)){
-        if(numOfPkt[actualRxBuffer])    //if is something to send
+        if(pktMemory[actualRxBuffer].numOfPkt)    //if is something to send
           transmit();
         else
           rf_printf(ZERO_PACKET);
@@ -727,7 +732,7 @@ uint8_t ch1, ch2;
     rxPktPtr = &rxUARTbuffer[rxUARTcount];
   }
   else{
-    rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];
+    rxPktPtr = &pktMemory[actualRxBuffer].packet[pktMemory[actualRxBuffer].numOfPkt][HEAD_LENGHT];
     
     for (i=0;i<LEN_OF_RX_PKT/2;i++){    //conversion of binary data to ascii chars 0 ... F 
       ch1 = rxUARTbuffer[i*2]-'0';
@@ -741,13 +746,13 @@ uint8_t ch1, ch2;
     
     //memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);    //copy buffer to mmory
     //save number of received bytes
-    lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;
+    pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = rxUARTcount;
     rxUARTcount = 0;
     
     rxPktPtr = rxUARTbuffer;
     //incremet number of received packets
-    if(numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY)
-      numOfPkt[actualRxBuffer]++;
+    if(pktMemory[actualRxBuffer].numOfPkt < NUM_OF_PACKETS_IN_MEMORY)
+      pktMemory[actualRxBuffer].numOfPkt++;
     else
       memory_full_flag = TRUE;
   }
@@ -794,11 +799,11 @@ void UART_Int_Handler (void)
     rxUARTcount++;
     
     if (rxUARTcount >= (PACKET_MEMORY_DEPTH-HEAD_LENGHT)){          //packt full
-      if (numOfPkt[actualRxBuffer] < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
-        rxPktPtr = &pktMemory[actualRxBuffer][numOfPkt[actualRxBuffer]][HEAD_LENGHT];   //pinting beyound packet head
+      if (pktMemory[actualRxBuffer].numOfPkt < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
+        rxPktPtr = &pktMemory[actualRxBuffer].packet[pktMemory[actualRxBuffer].numOfPkt][HEAD_LENGHT];   //pinting beyound packet head
         memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);
-        lenghtOfPkt[actualRxBuffer][numOfPkt[actualRxBuffer]] = rxUARTcount;
-        numOfPkt[actualRxBuffer]++;
+        pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = rxUARTcount;
+        pktMemory[actualRxBuffer].numOfPkt++;
       }
       else
         dma_printf("packet memory is full ");

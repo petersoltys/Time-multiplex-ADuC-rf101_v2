@@ -4,7 +4,7 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-13-gd6efa72
+   @version     'V2.2'-14-gf471574
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
    @date        26.05.2016(DD.MM.YYYY) 
@@ -320,7 +320,7 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-13-gd6efa72
+	- Version:  'V2.2'-14-gf471574
 	- Hardware: ADucRF101MKxZ
 	- Date:       26.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
