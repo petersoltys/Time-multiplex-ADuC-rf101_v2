@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-15-gaba903a
+   @version     'V2.2'-17-g0b6dac7
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        26.05.2016(DD.MM.YYYY)
+   @date        01.06.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -107,7 +107,7 @@ int8_t   dmaTxReady = FALSE;    /*!< @brief flag mean that all variables are set
 uint8_t  dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
 uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
 
-#if CHECK_RANDOM
+#if CHECK_PRNG_LOCAL
 //to ensure arrangement variables in byte by byte grid structure (without "bubles")
 //is used directive #pragma pack(1)
 #pragma pack(1)
@@ -120,7 +120,7 @@ struct rand_pkt {
   #else
   long next;                    //variable for PRNG
   #endif
-  int   rnadom;
+  int16_t  rnadom;
 } random_pkt[NUM_OF_SLAVE];  
 
 #endif
@@ -674,7 +674,6 @@ uint8_t zeroPacket(void){
    @fn     int8_t receivePackets(void)
    @brief  receive all packets of sended time slot;
    @pre    radioInit() must be called before this function is called.
-   @pre    rf_printf("1slot") or equivalent should be called first.
    @code    
       radioInit();
       rf_printf("1slot");       //slot identificator
@@ -709,7 +708,7 @@ int8_t receivePackets(void){
     else {                  //try retransmit again if no one received packet 
       if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
-          rf_printf(TIME_SLOT_ID_MASTER);   //send again slot ID
+          rf_printf(TIME_SLOT_ID_MASTER);    //send again slot ID
           retransmision++;
         }
         else{                                //if nothing after RETRANSMISION times
@@ -718,7 +717,7 @@ int8_t receivePackets(void){
       }else{
         //if no receiving more packets
         if ((int16_t)(pktMemory[actualRxBuffer].numOfPkt - (received + unsuccessfulCounter)) <= 0 )
-          return -unsuccessfulCounter;     //missing some packets
+          return -unsuccessfulCounter;       //missing some packets
         else
           unsuccessfulCounter++;
       }
@@ -760,6 +759,8 @@ void SetInterruptPriority (void){
    @brief  function is setting initial value of PRNG
    @see    randc(void)
 **/
+
+#if CHECK_PRNG_LOCAL
 void srandc(unsigned int seed , struct rand_pkt* random_packet)
 {
   #if WEEAK_RANDOM_FUNCTION == 1
@@ -826,6 +827,7 @@ void checkRandomBufferedPackets(void){
               }
             }else{
               printf("\nwrong seed number at packet number %d",rnd_pkt_ref->randomPktNum);
+              //set values to synchronization
               rnd_pkt_ref->next = rnd_pkt_in_memory->next;
             }
           }else{
@@ -852,6 +854,8 @@ void checkRandomBufferedPackets(void){
   if(actualRxBuffer >= 2)
     actualRxBuffer=0;
 }
+#endif
+
 /**
    @fn     void checkIntegrityOfFirmware(void)
    @brief  fgunction to check firmware
@@ -907,7 +911,7 @@ int main(void)
   ledInit();
   radioInit();
   SetInterruptPriority ();
-  #if CHECK_RANDOM
+  #if CHECK_PRNG_LOCAL
   initializeRandomCheck();
   #endif
 
@@ -921,7 +925,7 @@ int main(void)
       ifMissPktGet();                 //get back if losted some packets
       
       
-      #if CHECK_RANDOM == 1
+      #if CHECK_PRNG_LOCAL
       checkRandomBufferedPackets();
       #else
       flushBufferedPackets();         //send on UART received packets

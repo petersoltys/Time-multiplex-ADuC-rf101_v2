@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-15-gaba903a
+   @version     'V2.2'-17-g0b6dac7
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        26.05.2016(DD.MM.YYYY) 
+   @date        01.06.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -101,7 +101,7 @@ struct rand_pkt {
   #else
   long next;                    //variable for PRNG
   #endif
-  int   rnadom;
+  int16_t rnadom;
 } random_packet;  
 
 
@@ -637,9 +637,10 @@ int main(void)
       
     }
     
-    if (button_pushed()){   //initialize PRNG
+    if (button_pushed()){   //(re)initialize PRNG
       PRNG_data = TRUE;
       srandc(RAND_SEED);
+      random_packet.randomPktNum = 0;
     }
     //fill up the memory
     if ((PRNG_data == TRUE) && memory_full_flag == FALSE )
