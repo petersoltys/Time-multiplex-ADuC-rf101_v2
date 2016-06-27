@@ -5,9 +5,9 @@ Debuged for ADucRF101MKxZ development kit
 
 - Supervisor: 	doc. Ing. Milos Drutarovsky Phd.
 - Author:   	Peter Soltys
-- Version:      'V2.2'-9-gc3ad1a6
+- Version:      'V2.2'-18-g4348fc0
 - Hardware: 	ADucRF101MKxZ
-- Date:         25.04.2016
+- Date:         27.06.2016
 - Project:  	Time-multiplex-ADuc-RF101
 
 

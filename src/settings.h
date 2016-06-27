@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-11-g5fa1c05
+   @version     'V2.2'-18-g4348fc0
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        02.05.2016(DD.MM.YYYY) 
+   @date        27.06.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -185,7 +185,7 @@
           - 0 if variable lenght of packets
           - 1-240 constant lenght of packets
  **/
-#define LEN_OF_RX_PKT 10
+#define MAX_LEN_OF_RX_PKT 24
 
  /**
     @brief  time interval to interrupt for synchronization
@@ -202,14 +202,22 @@
     @param  time :{7000 ~ 0.8ms}
  **/
 #define T_TIMEOUT 7000     //max time(number of increments) to response of slave 
- 
+
+/**
+    @brief  max time(number of increments) to flush all buffered packets
+    @note   interval witch is counted until all packets are transmitted
+    @see    flushBufferedPackets()
+    @param  time :{7000 ~ 0.8ms}
+ **/
+#define DMA_TIMEOUT 50000     //max time(number of increments) to response of slave 
+
  /**
     @brief  max number of receiving timeouts to restart receiving operation
     @see    radioRecieve()
     @see    T_TIMEOUT
     @param  (uint8_t) 0 - 255 
  **/
-#define RX_PKT_TOUT_CNT 5
+#define RX_PKT_TOUT_CNT 20
 
 /*******************************************************************************
 * Master interface settings
@@ -218,12 +226,12 @@
  /**
     @brief  UART baudrate with is using master
  **/
-#define UART_BAUD_RATE_MASTER 256000
+#define UART_BAUD_RATE_MASTER 115200//256000//9600//
 
  /**
     @brief  string defining format of "ID slot" packet
  **/
-#define TIME_SLOT_ID_MASTER "%dslot",slave_ID
+#define TIME_SLOT_ID_MASTER "0slot"
 
  /**
     @brief  number of retransmission trying until slave is marked as not responding
@@ -240,25 +248,25 @@
     @note   For compatibility with "UWB - Coordinate Reader Deployment" from 
             Peter Mikula baudrate should be 9600
  **/
-#define UART_BAUD_RATE_SLAVE 128000
+#define UART_BAUD_RATE_SLAVE 9600
 
+ /** @brief  number of actual slave
+     @param slave number{1 - NUM_OF_SLAVE}
+ **/
+#define SLAVE_ID 4                    //Slave == 1..4 number
 //slave identificating macros
  /** @brief  format of slot identificator  
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define TIME_SLOT_ID_SLAVE "2slot"    //number in string is Slave == 1..4 number
+#define TIME_SLOT_ID_SLAVE "4slot"    //number in string is Slave == 1..4 number
  /** @brief  format of zero packet
      @param slave number{1 - NUM_OF_SLAVE} first number
  **/
-#define ZERO_PACKET "200"             //first number in string is Slave == 1..4 number
+#define ZERO_PACKET "400"             //first number in string is Slave == 1..4 number
  /** @brief  format of retransmision packet
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define RETRANSMISION_ID "2RE"        //number in string is Slave == 1..4 number
- /** @brief  number of actual slave
-     @param slave number{1 - NUM_OF_SLAVE}
- **/
-#define SLAVE_ID 2                    //Slave == 1..4 number
+#define RETRANSMISION_ID "4RE"        //number in string is Slave == 1..4 number
 
 
 //head definition
@@ -282,7 +290,14 @@
 #define RX_STREAM 0       /*!< @brief stream of redeived data to UART**/
 #define TX_STREAM 0       /*!< @brief stream of transmited data to UART**/
 #define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/
+#define HEXA_TRANSFER 0   /*!< @brief sending packets via UART in hexadecimal ASCII chars */
 
+/*! @brief start checking PRNG packets local (on master} 
+    @note  packets are not streamed on UART only messages
+*/
+#define CHECK_PRNG_LOCAL 0
+#define PRNG_PKT_LEN 12   /*!< @brief lenght in bytes of PRNG packet */
+#define RAND_SEED 500     /*!< @brief initial number for PRNG */
 /**
   @brief settings of used implementation of random function
   @param {0-1}
@@ -300,11 +315,12 @@
         return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
     }
 **/
-#define WEEAK_RANDOM_FUNCTION 0                               
-#define RAND_SEED 500 /*!< @brief initial number for PRNG */
+#define WEEAK_RANDOM_FUNCTION 0 
+
           
           
-#define HEXA_TRANSFER 0
+
+
 
 #endif    //#ifndef __SETTINGS_H
 
@@ -318,9 +334,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-11-g5fa1c05
+	- Version:  'V2.2'-18-g4348fc0
 	- Hardware: ADucRF101MKxZ
-	- Date:       02.05.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       27.06.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
