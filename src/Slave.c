@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-17-g0b6dac7
+   @version     'V2.2'-18-g4348fc0
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        01.06.2016(DD.MM.YYYY) 
+   @date        27.06.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -45,7 +45,7 @@
 
 //global variables 
 RIE_Responses RIE_Response = RIE_Success;
-uint8_t  Buffer[255];
+uint8_t        Buffer[255];
 RIE_U8         PktLen;
 RIE_S8         RSSI;
 
@@ -61,39 +61,23 @@ RIE_S8         RSSI;
             for pointing are used flags : actualRxBuffer, actualTxBuffer
             
    @note  size of mermory is restricted because ADuc rf101 have only 16KBytes SRAM
-   @note  UART nust be much faster(tested on 128000 baud rate) than RF-link (to release memory)
+   @note  UART nust be much faster(tested on 115200 baud rate) than RF-link (to release memory)
    @see   actualRxBuffer 
    @see   actualTxBuffer
 **/
-
 #pragma pack(1)
 struct pkt_memory {
   uint8_t packet[NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
   uint8_t lenghtOfPkt[NUM_OF_PACKETS_IN_MEMORY];
   uint8_t numOfPkt;
 }pktMemory[2];
-/*
-// [level][num of packet][packet data]
-uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
-/*
-  pktMemory is 2 levels deep 
-  puspose is changing in circle 
-  0 actual receiving buffer
-  1 actual sending buffer
-  for pointing are used flags : actualRxBuffer, actualTxBuffer,
-*/
-/*         // [level]
-char numOfPkt[2] = {0,0};   //similar like pktMemory
-                      // [level][lenght]
-uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY];   //similar like pktMemory
-*/
+
 uint8_t PRNG_data = FALSE;   //flag to set random data generation
 
 //to ensure arrangement variables in byte by byte grid structure (without "bubles")
 //is used directive #pragma pack(1)
 #pragma pack(1)
 struct rand_pkt {
-  char  Slave;
   char  slave_id;
   uint32_t  randomPktNum;
   #if WEEAK_RANDOM_FUNCTION == 1
@@ -102,24 +86,67 @@ struct rand_pkt {
   long next;                    //variable for PRNG
   #endif
   int16_t rnadom;
+  char  PktTerminator;
 } random_packet;  
 
 
 char actualRxBuffer=0;
 char actualTxBuffer=1;
 
-uint8_t dmaRxBuffer[PACKET_MEMORY_DEPTH*2];    //buffer for DMA TX UART channel
-uint8_t rxUARTbuffer[255];
+uint8_t rxPingPong = 0;                            //ping pong pointer in rxUARTbuffer
+uint8_t rxUARTbuffer[2][PACKET_MEMORY_DEPTH];    //buffer for TX UART channel
+uint16_t rxUARTbufferCount[2] = {0,0};
+uint16_t rxUARTcount = 0;
+
+
 uint8_t* rxPktPtr ;
-int rxUARTcount = 0;
 /////////flags/////////////////////
-uint8_t TX_flag=FALSE, RX_flag=FALSE, terminate_flag=FALSE, buffer_change_flag=0, memory_full_flag = 0 ;
-uint8_t my_slot = FALSE;
+uint8_t TX_flag = FALSE, RX_flag=FALSE, terminate_flag=FALSE, buffer_change_flag=0, memory_full_flag = 0 ;
+uint8_t my_slot = FALSE, pkt_received_flag = FALSE, close_packet_flag = FALSE;
 
 void UART_Int_Handler (void);
 
 int i=0,j=0;
 int debugTimer=0;
+
+/** 
+   @fn      void storePkt(void)
+   @brief   store buffered packet via UART to packetMemory
+   @note    place this code where is nothing else to do.
+   @code    
+      //place this code at place where is MCU waiting for something
+      if (pkt_received_flag == TRUE)
+        storePkt();
+   @endcode
+
+**/
+void storePkt(void){
+  uint8_t pktNum, *destPtr, *sourcePtr, pingPong;
+  uint16_t packetLen;
+  
+  pingPong = rxPingPong;
+  pingPong++;
+  if(pingPong >= 2)
+    pingPong = 0;
+  
+  packetLen = rxUARTbufferCount[pingPong];
+  sourcePtr = &rxUARTbuffer[pingPong][0];
+  
+  pktNum = pktMemory[actualRxBuffer].numOfPkt;
+  
+  if (pktNum < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
+    destPtr = &pktMemory[actualRxBuffer].packet[pktNum][HEAD_LENGHT];   //pinting beyound packet head
+    
+    memcpy(destPtr, sourcePtr, packetLen); //copy packet to memory
+   
+    pktMemory[actualRxBuffer].lenghtOfPkt[pktNum] = packetLen;
+    pktMemory[actualRxBuffer].numOfPkt++;
+  }
+  else{
+    //dma_printf("\npacket memory is full #");
+  }
+  pkt_received_flag = FALSE;
+}
 
 
 /** 
@@ -138,26 +165,12 @@ void uart_init(void){
   UrtLinCfg(0,UART_BAUD_RATE_SLAVE,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);//configure uart
   DioCfg(pADI_GP1,0x9);         // UART functionality on P1.0/P1.1
   
-#if LEN_OF_RX_PKT == 0
-  UrtIntCfg(0,COMIEN_ERBFI);    // enable Rx interrupts
+  UrtIntCfg(0,COMIEN_ERBFI);    // enable Rx interrupts at any char
   NVIC_EnableIRQ(UART_IRQn);    // setup to receive data using interrupts
-#endif
   
-  DmaInit();// Create DMA descriptor
- // Set transfer parameters
- //                 transfer  target
- //                 channel   count pointer
-  DmaTransferSetup(UARTTX_C,  20,   Buffer);
-  DmaTransferSetup(UARTRX_C,  20,   rxPktPtr);
-  NVIC_EnableIRQ ( DMA_UART_TX_IRQn );    // Enable DMA UART TX interrupt
-  NVIC_EnableIRQ ( DMA_UART_RX_IRQn );    // Enable DMA UART RX interrupt
-  
-#if LEN_OF_RX_PKT
-//enable RX DMA chanel for receiving packets forom UART
-  DmaChanSetup(UARTRX_C,ENABLE,ENABLE);   // Enable DMA channel  
-  DmaTransferSetup(UARTRX_C,LEN_OF_RX_PKT,(uint8_t*)rxUARTbuffer);
-  UrtDma(0,COMIEN_EDMAR);                 //start rx 
-#endif
+  rxPingPong++;   // ==1
+  rxPktPtr = &rxUARTbuffer[rxPingPong][0];
+
 }
 
 /**
@@ -275,7 +288,11 @@ void radioSend(void* buff, uint8_t len){
   }
   
   if (RIE_Response == RIE_Success){   //wait untill packet sended
-    while(!RadioTxPacketComplete());
+    while(!RadioTxPacketComplete()){
+      //here is free time to store packet to memory
+      if (pkt_received_flag == TRUE)
+        storePkt();
+    }
   }
   #if T_PROCESSING
   while (safe_timer < T_PROCESSING)
@@ -333,10 +350,10 @@ uint8_t rf_printf(const char * format /*format*/, ...){
    @code    
       radioInit();
       if (radioReceive())
-        printf("packet was received and read from radio interface");
+        printf("\npacket was received and read from radio interface");
         printf(Buffer);   //Buffer is global bufer for radio interface
       else
-        printf("packet was not received correctly before timeout");
+        printf("\npacket was not received correctly before timeout");
    @endcode
    @note   function is also reding packet form radio interface to uint8_t Buffer[PACKETRAM_LEN]
    @return uint8_t - 1 == packet received, 0 == packet was not received correctly before timout
@@ -357,6 +374,11 @@ uint8_t radioRecieve(void){    //pocka na prijatie jedneho paketu
         LED_ON;
         return 0;
       }
+
+      //here is free time to store packet to memory
+      if (pkt_received_flag == TRUE)
+        storePkt();
+
     }
     RX_flag = FALSE;
   }
@@ -396,6 +418,7 @@ void setTimeToSync(uint16_t time){
   while (GptSta(pADI_TM0)& TSTA_CLRI);  // wait for sync of TCLRI write. required because of use of asynchronous clock
   NVIC_EnableIRQ(TIMER0_IRQn);
 }
+
 
 /** 
    @fn     uint8_t transmit(void)
@@ -518,7 +541,33 @@ int randc(void) // RAND_MAX assumed to be 32767
   #endif
 }
 
+/**
+   @fn     void binToHexa(uint8_t* from, uint8_t* to, uint16_t len )
+   @brief  function to converting binarz data to ASCII chars for hexadecimal system
+   @param  uint8_t* from : pointer at binary data in memory
+   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
+   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
+   @note   output lenght in destination memory place is double lenght as source lenght
+**/
+void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
+  uint16_t i;
+  for (i = 0 ; i < len ; i++){    //conversion of binary data to ascii chars 0 ... F
+    *to = ((*from & 0xf0)>>4)+'0';
+    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      *to += 7;
+
+    to++;                  //increment pointer
+
+    *to = (*from & 0x0f) + '0';
+    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
+      *to += 7;
+
+    to++;                 //increment pointer
+    from++;
+  }
+  *to = '$';
+}
 
 /** 
    @fn     void main(void)
@@ -532,14 +581,15 @@ void fill_memory(void){
   
   for (i = 0; i < NUM_OF_PACKETS_IN_MEMORY; i++){
     pktptr = &pktMemory[actualRxBuffer].packet[i][0];
-    len = 0;
-    while(len < PACKET_MEMORY_DEPTH-HEAD_LENGHT-PRNG_PKT_LEN ){
+    len = HEAD_LENGHT;
+    while(len < (PACKET_MEMORY_DEPTH-HEAD_LENGHT)-(PRNG_PKT_LEN*2) ){
       random_packet.randomPktNum ++;
       random_packet.rnadom = randc();
-      memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
-      len = len + PRNG_PKT_LEN;
+      binToHexa((uint8_t*)&random_packet, &pktptr[len], PRNG_PKT_LEN-1);
+      //memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
+      len += (PRNG_PKT_LEN*2)-1;
     }
-    pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = len;
+    pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = len-HEAD_LENGHT;
     pktMemory[actualRxBuffer].numOfPkt++;
   }  
   memory_full_flag = TRUE;
@@ -550,7 +600,7 @@ void fill_memory(void){
    @brief  initialize all nesessary values for PRNG
 **/
 void random_init(void){
-  random_packet.Slave='S';
+  random_packet.PktTerminator = '$';
   random_packet.slave_id = SLAVE_ID;
   random_packet.randomPktNum = 0;
   random_packet.next = 0;
@@ -585,11 +635,11 @@ void checkIntegrityOfFirmware(void){
   #endif
   
   if (retval == 0){
-    printf("\nintegrity check ok\n");
+    printf("\nintegrity check ok#");
     LED_ON;
   }
   else{
-    printf("\nproblem in integrity of firmware \n");  
+    printf("\nproblem in integrity of firmware #");  
     LED_OFF;
     //while(1);
   }
@@ -605,11 +655,11 @@ int main(void)
 {   
   memset(pktMemory, 0, sizeof(pktMemory)); 
   WdtGo(T3CON_ENABLE_DIS);    //stop watch-dog
-  checkIntegrityOfFirmware();
     
   //initialize all interfaces
   SetInterruptPriority();
   uart_init();
+  checkIntegrityOfFirmware();
   led_init();
   random_init();
   
@@ -621,10 +671,11 @@ int main(void)
       
       //if this slot identifier belongs to this slave
       if ( 0 == strcmp((char*)Buffer,TIME_SLOT_ID_SLAVE)){
+        close_packet_flag = TRUE;
         if(pktMemory[actualRxBuffer].numOfPkt)    //if is something to send
           transmit();
         else
-          rf_printf(ZERO_PACKET);
+          radioSend(ZERO_PACKET, 4);
       }
       
       //check if retransmit request
@@ -685,7 +736,6 @@ void GP_Tmr0_Int_Handler(void){
 void GP_Tmr1_Int_Handler(void){
   if (GptSta(pADI_TM1)== TSTA_TMOUT) // if timout interrupt
   { 
-
   }
 }
 
@@ -716,54 +766,14 @@ void hexaToBin(uint8_t* from, uint8_t to, len){
     @fn      void DMA_UART_RX_Int_Handler()
     @brief   Interrupt handler terminating DMA receiving transaction if constant
              lenght of packet is set
-    @see     LEN_OF_RX_PKT
+    @see     MAX_LEN_OF_RX_PKT
 **/
 void DMA_UART_RX_Int_Handler   ()
 {
-  //only if constant lenght of packet
-#if LEN_OF_RX_PKT
-uint8_t ch1, ch2;
-  
-  UrtDma(0,0); // prevents additional byte to restart DMA transfer
-
-  rxUARTcount += LEN_OF_RX_PKT;   //count received data
-  
-  //check place in memory
-  if (rxUARTcount <= PACKET_MEMORY_DEPTH-HEAD_LENGHT-LEN_OF_RX_PKT){
-    rxPktPtr = &rxUARTbuffer[rxUARTcount];
-  }
-  else{
-    rxPktPtr = &pktMemory[actualRxBuffer].packet[pktMemory[actualRxBuffer].numOfPkt][HEAD_LENGHT];
-    
-    for (i=0;i<LEN_OF_RX_PKT/2;i++){    //conversion of binary data to ascii chars 0 ... F 
-      ch1 = rxUARTbuffer[i*2]-'0';
-      if (ch1 > 9)         //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch1 -= 7;
-      ch2 = rxUARTbuffer[(i*2)+1]-'0';
-      if (ch2 > 9)         //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch2 -= 7;
-      rxPktPtr[i] = (ch1<<4) | ch2;
-    }
-    
-    //memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);    //copy buffer to mmory
-    //save number of received bytes
-    pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = rxUARTcount;
-    rxUARTcount = 0;
-    
-    rxPktPtr = rxUARTbuffer;
-    //incremet number of received packets
-    if(pktMemory[actualRxBuffer].numOfPkt < NUM_OF_PACKETS_IN_MEMORY)
-      pktMemory[actualRxBuffer].numOfPkt++;
-    else
-      memory_full_flag = TRUE;
-  }
-  
-  //enable RX DMA chanel for receiving next packets forom UART
-  DmaChanSetup(UARTRX_C,ENABLE,ENABLE);   // Enable DMA channel  
-  DmaTransferSetup(UARTRX_C,LEN_OF_RX_PKT,rxPktPtr);
-  UrtDma(0,COMIEN_EDMAR);
-#endif
+  UrtDma(0,0); // turn off pending dma transfer
 }
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Hard Fault Interrupt handler 
 // if pointer going out of array
@@ -785,33 +795,27 @@ void HardFault_Handler(void){
 **/
 void UART_Int_Handler (void)
 {   
-#if LEN_OF_RX_PKT==0
-  uint8_t ucCOMIID0; 
-  char ch;
+  uint8_t ucCOMIID0, ch, pktNum; 
  
-  ucCOMIID0 = UrtIntSta(0);    // Read UART Interrupt ID register
-
-  if ((ucCOMIID0 & COMIIR_STA_RXBUFFULL) == COMIIR_STA_RXBUFFULL)    // Receive buffer full interrupt
-  {
-    
-    ch  = UrtRx(0);           //call UrtRd() clears COMIIR_STA_RXBUFFULL
+  ch  = UrtRx(0);           //call UrtRd() clears COMIIR_STA_RXBUFFULL
   
-    rxUARTbuffer[rxUARTcount]= ch;
-    rxUARTcount++;
-    
-    if (rxUARTcount >= (PACKET_MEMORY_DEPTH-HEAD_LENGHT)){          //packt full
-      if (pktMemory[actualRxBuffer].numOfPkt < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
-        rxPktPtr = &pktMemory[actualRxBuffer].packet[pktMemory[actualRxBuffer].numOfPkt][HEAD_LENGHT];   //pinting beyound packet head
-        memcpy(rxPktPtr,rxUARTbuffer,rxUARTcount);
-        pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = rxUARTcount;
-        pktMemory[actualRxBuffer].numOfPkt++;
-      }
-      else
-        dma_printf("packet memory is full ");
+  *rxPktPtr = ch;
+  rxUARTcount++;
+  rxPktPtr++;
+  if ( (ch == '$') || (rxUARTcount >= PACKET_MEMORY_DEPTH)){
+    if ((rxUARTcount >= (PACKET_MEMORY_DEPTH - (HEAD_LENGHT + MAX_LEN_OF_RX_PKT))) || close_packet_flag == TRUE){
+      rxUARTbufferCount[rxPingPong] = rxUARTcount;
       
-      rxUARTcount=0;       
+      rxPingPong++;
+      if (rxPingPong == 2)
+        rxPingPong=0;
+      //set pointer to next receiving
+      rxPktPtr = rxUARTbuffer[rxPingPong];    //buffer for TX UART channel
+      
+      rxUARTcount = 0;
+      close_packet_flag = FALSE;
+      pkt_received_flag = TRUE;
     }
   }
-#endif
 } 
 

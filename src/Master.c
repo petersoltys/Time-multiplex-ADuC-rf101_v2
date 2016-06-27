@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-17-g0b6dac7
+   @version     'V2.2'-18-g4348fc0
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        01.06.2016(DD.MM.YYYY)
+   @date        27.06.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -82,6 +82,9 @@ uint8_t actualPacket;
 
 int8_t actualRxBuffer=0,actualTxBuffer=1;
 
+uint8_t timeSlotString[6] = TIME_SLOT_ID_MASTER ;//send slot identificator
+  
+
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
 uint8_t dmaTxBuffer[2][(PACKET_MEMORY_DEPTH*2)];        //buffer for DMA TX UART channel
 uint8_t dmaTxPingPong = 0;                              //ping pong pointer in dmaTxBuffer
@@ -93,7 +96,7 @@ uint8_t slave_ID = 1;   //Slave ID
 int8_t send=FALSE;
 //int8_t nextRxPkt=0;
 
-int8_t TX_flag=FALSE,RX_flag=FALSE, flush_flag=FALSE;
+int8_t TX_flag=FALSE,RX_flag=FALSE, flush_flag = FALSE;
 int8_t sync_flag = FALSE;    //flag starting sending synchronization packet
 int8_t sync_wait = FALSE;
 int8_t firstRxPkt = FALSE;
@@ -106,6 +109,8 @@ int8_t   dmaTx_flag = FALSE;    /*!< @brief flag about transmitting operation */
 int8_t   dmaTxReady = FALSE;    /*!< @brief flag mean that all variables are set for transmit */
 uint8_t  dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
 uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
+uint8_t  dmaTxPktTotal;
+uint16_t dmaTxTimeoutCounter=0;
 
 #if CHECK_PRNG_LOCAL
 //to ensure arrangement variables in byte by byte grid structure (without "bubles")
@@ -333,7 +338,7 @@ uint8_t rf_printf(const char * format /*format*/, ...){
    @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
    @note   output lenght in destination memory place is double lenght as source lenght
 **/
-
+#if HEXA_TRANSFER
 void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
 
   uint16_t i;
@@ -352,35 +357,26 @@ void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
     from++;
   }
 }
-/*
-void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
-  uint8_t ch;
-  uint16_t i;
-  for (i=0;i<len;i++){    //conversion of binary data to ascii chars 0 ... F 
-    ch = (from[i]&0x0f) + '0';
-    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      ch += 7;
-    to[(i*2)+1] = ch;
-    ch = ((from[i]&0xf0)>>4)+'0';
-    if (ch > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      ch += 7;
-    to[(i*2)] = ch;
-  }
-}*/
 
+/** 
+   @fn     void setTransfer(void)
+   @brief  function preparing data to send trought UART
+   @see    DMA_UART_TX_Int_Handler
+   @note   function is executing during waiting time in function radioRecieve
+   @see    radioRecieve
+
+**/
 void setTransfer(void){
   if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
-    if(dmaTxPkt < (pktMemory[actualTxBuffer].numOfPkt)){      //packet iterate 0..as needed
+    if(dmaTxPkt < dmaTxPktTotal){      //packet iterate 0..as needed
       
       dmaTxPtr = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
       
-      if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag
+      if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag 'w'
         
         dmaTxLen = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
 
-        #if HEXA_TRANSFER
           binToHexa(dmaTxPtr,&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen);
-        #endif
           
         dmaTxReady = TRUE;
         if (dmaTx_flag == FALSE){
@@ -389,7 +385,7 @@ void setTransfer(void){
         }
       }
       else{
-        //dma_printf("missing packet %d ",dmaTxPkt+1);        //message about missing packet
+        //dma_printf("\nmissing packet %d ",dmaTxPkt+1);        //message about missing packet
       }
       dmaTxPkt++;
     }
@@ -398,6 +394,8 @@ void setTransfer(void){
     }
   }
 }
+#endif
+
 /** 
    @fn     uint8_t radioRecieve(void)
    @brief  function receive one packet with radio interface
@@ -405,10 +403,10 @@ void setTransfer(void){
    @code    
       radioInit();
       if (radioReceive())
-        printf("packet was received and read from radio interface");
+        printf("\npacket was received and read from radio interface");
         printf(Buffer);//Buffer is global bufer for radio interface
       else
-        printf("packet was not received correctly before timeout");
+        printf("\npacket was not received correctly before timeout");
    @endcode
    @note    function is also reding packet form radio interface to uint8_t Buffer[PACKETRAM_LEN]
    @return  uint8_t - 1 == packet received, 0 == packet was not received correctly before timout
@@ -438,7 +436,9 @@ uint8_t radioRecieve(void){
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
       timeout_timer++;
+#if HEXA_TRANSFER
       setTransfer();
+#endif
       //turn on led if nothing is received after timeout
       if (timeout_timer > T_TIMEOUT){
         LED_ON;
@@ -477,7 +477,7 @@ uint8_t radioRecieve(void){
       radioInit();
       if (radioReceive())
         if (validPacket())
-          printf("packet was sucsesfully received with correct packet head");
+          printf("\npacket was sucsesfully received with correct packet head#");
    @endcode
    @note   function send messages about incorrect packet on UART
    @return uint8_t - 1 == valid packet head, 0 == invalid packet head
@@ -507,7 +507,7 @@ uint8_t validPacket(void){
   }
   
   if (slv != slave_ID)    //check of slave id (number) expected/transmiting
-    dma_printf("slave id dismatch or not recognizet packet");
+    dma_printf("\nslave id dismatch or not recognizet packet#");
   
   if (actualPacket==0)    //if zero packet
     return 0;
@@ -531,7 +531,7 @@ uint8_t validPacket(void){
       radioInit();
       if (radioReceive())
         if (validPacket()){
-          printf("packet was sucsesfully received with correct packet head");
+          printf("\npacket was sucsesfully received with correct packet head#");
           copyBufferToMemory();
           }
    @endcode
@@ -544,7 +544,7 @@ void copyBufferToMemory(void){
   
   #if SIMULATE_RETX
       dmaSend(" s ",3);
-      //dma_printf("saving actualPacket %d ",actualPacket);
+      //dma_printf("\nsaving actualPacket %d #",actualPacket);
   #endif
   
   memcpy(buf,Buffer,PktLen);//copy packet to memory
@@ -561,6 +561,9 @@ void ifMissPktGet(void)
   int8_t ch, i, numOfReTxPackets = 0, retransmision=0;
   char str[25]=RETRANSMISION_ID;
   char str2[2]={0,0};
+  #if DEBUG_MESAGES || SIMULATE_RETX
+    int8_t validReceivedPackets = 0;
+  #endif
   
 ////////check for missing packets////////////////////////////////////
   for(i=0; i < pktMemory[actualRxBuffer].numOfPkt ; i++)  //iterate throught packets
@@ -581,28 +584,39 @@ void ifMissPktGet(void)
 //////////////send request for retransmition if needed//////////////
   if (numOfReTxPackets != 0)
   {
-    rf_printf(str);
+    radioSend(str, numOfReTxPackets+4);
+    //rf_printf(str);
 
     #if DEBUG_MESAGES || SIMULATE_RETX
-      dma_printf("  %s of %d \n", str, numOfPkt[actualRxBuffer]);
+      dma_printf("\n  %s of %d #", str, pktMemory[actualRxBuffer].numOfPkt);
     #endif
     
 //////////////receive missing packets//////////////
     for (i=0; i<numOfReTxPackets; i++){
       //if packet was received copy buffered packet
       if (radioRecieve()){
-        if (validPacket())
+        if (validPacket()){
           copyBufferToMemory();
+          #if DEBUG_MESAGES || SIMULATE_RETX
+          validReceivedPackets ++;
+          #endif
+        }
       }
       else{     //send again request to get miss packets
         if (retransmision < RETRANSMISION -1){
-          rf_printf(str);
+          radioSend(str, numOfReTxPackets+4);
+          //rf_printf(str);
           i=0;//-1
         }
         else
           break;
       }
     }
+    #if DEBUG_MESAGES || SIMULATE_RETX
+    if (numOfReTxPackets != validReceivedPackets){
+      dma_printf("\nmissing %d packets after retransmission#", (numOfReTxPackets-validReceivedPackets));
+    }
+    #endif
   }
 }
 /** 
@@ -613,14 +627,18 @@ void ifMissPktGet(void)
    @note   all managment about sending packets is in @see DMA_UART_TX_Int_Handler()
 **/
 void flushBufferedPackets(void){
-  uint16_t counter=0;
   //wait untill all packets are flushed
   while(flush_flag==TRUE){
+#if HEXA_TRANSFER
     setTransfer();
-    counter++;
+#endif
+    dmaTxTimeoutCounter++;
+    // @bug for some unknown reason interrupt does not occur
+    //probably sometime interrupt does not occur
+    if (dmaTxTimeoutCounter > DMA_TIMEOUT)
+      DMA_UART_TX_Int_Handler();
   }
-  if (counter)
-    counter=0;
+  dmaTxTimeoutCounter=0;
   //switch buffer 
   actualRxBuffer++;
   actualTxBuffer++;
@@ -630,7 +648,8 @@ void flushBufferedPackets(void){
     actualRxBuffer=0;
   
   dmaTxPkt =0;
-  flush_flag =TRUE;
+  dmaTxPktTotal = pktMemory[actualTxBuffer].numOfPkt;
+  flush_flag = TRUE;
   //call DMA_UART_TX_Int_Handler all managment is inside this function
   DMA_UART_TX_Int_Handler ();
 }
@@ -676,7 +695,7 @@ uint8_t zeroPacket(void){
    @pre    radioInit() must be called before this function is called.
    @code    
       radioInit();
-      rf_printf("1slot");       //slot identificator
+      rf_printf("\n1slot");       //slot identificator
       if (receivePackets())
         flushPacktes();         //send all received packtes on UART
    @endcode
@@ -688,7 +707,8 @@ int8_t receivePackets(void){
   uint8_t unsuccessfulCounter = NUM_OF_PACKETS_IN_MEMORY;
   
   //send slot identificator
-  rf_printf(TIME_SLOT_ID_MASTER);   //start packet for new multiplex
+  //radioSend(timeSlotString,6);  //for some unknown reason rf_printf is more reliable
+  rf_printf("%dslot",slave_ID);   //start packet for new multiplex
   
   while (1){                //loop for receiving all expecting packets
     
@@ -708,7 +728,9 @@ int8_t receivePackets(void){
     else {                  //try retransmit again if no one received packet 
       if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
-          rf_printf(TIME_SLOT_ID_MASTER);    //send again slot ID
+          //send slot identificator
+          //radioSend(timeSlotString,6);    //send again slot ID
+          rf_printf("%dslot",slave_ID); //for some unknown reason rf_printf is more reliable
           retransmision++;
         }
         else{                                //if nothing after RETRANSMISION times
@@ -736,6 +758,7 @@ void initializeNewSlot(void){
   if (slave_ID > NUM_OF_SLAVE)
     slave_ID = 1;
   
+  timeSlotString[0] = (slave_ID + '0');
   firstRxPkt=FALSE;
   pktMemory[actualRxBuffer].numOfPkt= 0;
 }
@@ -790,6 +813,14 @@ int randc(struct rand_pkt* random_packet) // RAND_MAX assumed to be 32767
   #endif
 }
 
+/** 
+   @fn     void initializeRandomCheck(void)
+   @brief  initializing values for reference PRNG
+   @note   before first fun should be initialized seed value
+   @see    WEEAK_RANDOM_FUNCTION
+   @see    srandc()
+   @return int - rnadom number
+**/
 void initializeRandomCheck(void){
   char slave;
   //initialize random packets
@@ -801,6 +832,12 @@ void initializeRandomCheck(void){
   }
 }
 
+/** 
+   @fn     checkRandomBufferedPackets(void)
+   @brief  comparing local and received PRNG packet 
+   @note   defining this function set CHECK_PRNG_LOCAL macro to 1
+   @see    srandc()
+**/
 void checkRandomBufferedPackets(void){
   uint8_t packet, word;
   uint32_t temp_pkt_num_ref, temp_pkt_num_mem;
@@ -810,41 +847,45 @@ void checkRandomBufferedPackets(void){
     
     //pointer in packet memory
     rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer].packet[packet][HEAD_LENGHT]; 
-    for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/PRNG_PKT_LEN); word > 0 ; word --){
-      //check one random word
-      if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
-        if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id
-          //initialze new random word
-          rnd_pkt_ref = &random_pkt[rnd_pkt_in_memory->slave_id-1];
-          rnd_pkt_ref->randomPktNum++;
-          rnd_pkt_ref->rnadom = randc(rnd_pkt_ref);
-          if (rnd_pkt_ref->randomPktNum == rnd_pkt_in_memory->randomPktNum){
-            if (rnd_pkt_ref->next == rnd_pkt_in_memory->next){
-              if (rnd_pkt_ref->rnadom == rnd_pkt_in_memory->rnadom){
-                //packet valid
+    if (pktMemory[actualRxBuffer].packet[packet][1] == 'w')
+      printf("\nmissing packet %d#",packet);
+    else{
+      for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/PRNG_PKT_LEN); word > 0 ; word --){
+        //check one random word
+        if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
+          if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id
+            //initialze new random word
+            rnd_pkt_ref = &random_pkt[rnd_pkt_in_memory->slave_id-1];
+            rnd_pkt_ref->randomPktNum++;
+            rnd_pkt_ref->rnadom = randc(rnd_pkt_ref);
+            if (rnd_pkt_ref->randomPktNum == rnd_pkt_in_memory->randomPktNum){
+              if (rnd_pkt_ref->next == rnd_pkt_in_memory->next){
+                if (rnd_pkt_ref->rnadom == rnd_pkt_in_memory->rnadom){
+                  //packet valid
+                }else{
+                  printf("\nwrong random number#");
+                }
               }else{
-                printf("\nwrong random number");
+                printf("\nwrong seed number at packet number %d#",rnd_pkt_ref->randomPktNum);
+                //set values to synchronization
+                rnd_pkt_ref->next = rnd_pkt_in_memory->next;
               }
             }else{
-              printf("\nwrong seed number at packet number %d",rnd_pkt_ref->randomPktNum);
+              temp_pkt_num_ref = rnd_pkt_ref->randomPktNum;
+              temp_pkt_num_mem = rnd_pkt_in_memory->randomPktNum;
+              printf("\nmissing %d words#",(temp_pkt_num_mem - temp_pkt_num_ref));
               //set values to synchronization
+              rnd_pkt_ref->randomPktNum = rnd_pkt_in_memory->randomPktNum;
               rnd_pkt_ref->next = rnd_pkt_in_memory->next;
             }
           }else{
-            temp_pkt_num_ref = rnd_pkt_ref->randomPktNum;
-            temp_pkt_num_mem = rnd_pkt_in_memory->randomPktNum;
-            printf("\nmissing %d packets",(temp_pkt_num_mem - temp_pkt_num_ref));
-            //set values to synchronization
-            rnd_pkt_ref->randomPktNum = rnd_pkt_in_memory->randomPktNum;
-            rnd_pkt_ref->next = rnd_pkt_in_memory->next;
+            printf("\nslave number is out of range#");
           }
         }else{
-          printf("\nslave number is out of range");
+          printf("\nwrong synchronizing of packet#");
         }
-      }else{
-        printf("\nwrong synchronizing of packet");
+        rnd_pkt_in_memory ++;
       }
-      rnd_pkt_in_memory ++;
     }
   }
   actualRxBuffer++;
@@ -883,11 +924,11 @@ void checkIntegrityOfFirmware(void){
   #endif
   
   if (retval == 0){
-    printf("\nintegrity check ok\n");
+    printf("\nintegrity check ok#");
     LED_ON;
   }
   else{
-    printf("\nproblem in integrity of firmware \n");  
+    printf("\nproblem in integrity of firmware #");  
     LED_OFF;
     //while(1);
   }
@@ -920,7 +961,7 @@ int main(void)
     
     if (receivePackets()){            //if some data packets are received
       #if DEBUG_MESAGES
-        dma_printf("redeived %d pkts ", numOfPkt[actualRxBuffer]);
+        dma_printf("\nredeived %d pkts #", pktMemory[actualRxBuffer].numOfPkt);
       #endif
       ifMissPktGet();                 //get back if losted some packets
       
@@ -990,30 +1031,51 @@ void DMA_UART_TX_Int_Handler (void)
 {
   UrtDma(0,0);                       // prevents further UART DMA requests
   DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
-  
+#if HEXA_TRANSFER  
   if (dmaTxReady == TRUE){
-    #if HEXA_TRANSFER
-      #if SEND_HEAD
+    
+#if SEND_HEAD      
         dmaSend(&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen*2);        //send data with head
-      #else
-        dmaSend(&dmaTxBuffer[dmaTxPingPong][0]+HEAD_LENGHT, (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
+#else      
+        dmaSend(&dmaTxBuffer[dmaTxPingPong][HEAD_LENGHT*2], (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
+#endif        
         if (dmaTxPingPong > 0)//change ping pong buffer
           dmaTxPingPong = 0;
         else
           dmaTxPingPong = 1;
-      #endif
-    #else
-      #if SEND_HEAD
-        dmaSend(dmaTxPtr,dmaTxLen);          //send data with head
-      #else
-        dmaSend(dmaTxPtr+HEAD_LENGHT, (dmaTxLen)-(HEAD_LENGHT) );   //send only data without head
-      #endif
-    #endif
-    dmaTxReady = FALSE;//set flag about transfer
-  }
   else{
     dmaTx_flag = FALSE;
   }
+}
+        
+        dmaTxReady = FALSE;//set flag about transfer
+#else    
+        
+  if(flush_flag == TRUE){
+    if(dmaTxPkt < dmaTxPktTotal){      //packet iterate 0..as needed
+            
+      dmaTxPtr = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
+      
+      if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag 'w'
+        
+        dmaTxLen = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
+#if SEND_HEAD
+        dmaSend(dmaTxPtr,dmaTxLen);          //send data with head
+#else
+        dmaSend(dmaTxPtr + HEAD_LENGHT, dmaTxLen - HEAD_LENGHT);   //send only data without head
+#endif
+      }
+      else{
+        dma_printf("\nmissing packet %d ",dmaTxPkt+1);        //message about missing packet
+      }
+      dmaTxPkt++;
+      dmaTxTimeoutCounter = 0;
+    }
+    else{                                                   //all data sended
+      flush_flag = FALSE;
+    }
+  }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////
