@@ -9,10 +9,10 @@
 
              
 
-   @version     'V2.2'-18-g4348fc0
+   @version     'V2.2'-19-gfa31c0a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        27.06.2016(DD.MM.YYYY) 
+   @date        01.10.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -371,7 +371,7 @@ uint8_t radioRecieve(void){    //pocka na prijatie jedneho paketu
       timeout_timer++;
       //turn on led if nothing is received after timeout
       if (timeout_timer > T_TIMEOUT){
-        LED_ON;
+        //LED_ON;
         return 0;
       }
 
@@ -438,12 +438,12 @@ uint8_t transmit(void){
     //change buffer pointers
     actualRxBuffer++;
     actualTxBuffer++;
-    if(actualRxBuffer>=2)
-      actualRxBuffer=0;
-    else if(actualTxBuffer>=2)
-      actualTxBuffer=0;
+    if(actualRxBuffer >= 2)
+      actualRxBuffer = 0;
+    else if(actualTxBuffer >= 2)
+      actualTxBuffer = 0;
     
-    pktMemory[actualRxBuffer].numOfPkt=0;
+    pktMemory[actualRxBuffer].numOfPkt = 0;
   NVIC_EnableIRQ(UART_IRQn);  
   
   while (my_slot == TRUE && (txPkt < pktMemory[actualTxBuffer].numOfPkt) ){     //while interupt ocurs send avaliable packets
@@ -473,10 +473,10 @@ uint8_t retransmit(void){
   uint8_t pkt = 3;
   char reTxPkt[NUM_OF_PACKETS_IN_MEMORY + 5];
 
-  my_slot=TRUE;
+  my_slot = TRUE;
   strcpy(reTxPkt,(char*)Buffer);
   //retransmit only until interupt occur
-  while ((reTxPkt[pkt]!='\0') && my_slot==TRUE && terminate_flag == FALSE)
+  while ((reTxPkt[pkt]!='\0') && my_slot == TRUE && terminate_flag == FALSE)
   {
     radioSend(&pktMemory[actualTxBuffer].packet[pkt][0],(pktMemory[actualTxBuffer].lenghtOfPkt[pkt]+3));
     pkt++;
@@ -663,19 +663,18 @@ int main(void)
   led_init();
   random_init();
   
-  LED_OFF;
   radioInit();    //inicialize radio conection
     
   while (1){
     if (radioRecieve()){
-      
+      LED_ON;
       //if this slot identifier belongs to this slave
       if ( 0 == strcmp((char*)Buffer,TIME_SLOT_ID_SLAVE)){
         close_packet_flag = TRUE;
         if(pktMemory[actualRxBuffer].numOfPkt)    //if is something to send
           transmit();
         else
-          radioSend(ZERO_PACKET, 4);
+          radioSend(ZERO_PACKET, 4);    //send zero packet meanin nothing to send
       }
       
       //check if retransmit request
@@ -687,17 +686,26 @@ int main(void)
         setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
       
     }
+    else {
+      LED_OFF;
+    }
     
     if (button_pushed()){   //(re)initialize PRNG
-      PRNG_data = TRUE;
-      srandc(RAND_SEED);
-      random_packet.randomPktNum = 0;
+      if ((PRNG_data == TRUE) && memory_full_flag == FALSE ){
+        fill_memory();
+      }
+      else if (PRNG_data == FALSE){
+        PRNG_data = TRUE;
+        srandc(RAND_SEED);
+        random_packet.randomPktNum = 0;
+      }
     }
     //fill up the memory
-    if ((PRNG_data == TRUE) && memory_full_flag == FALSE )
-      fill_memory();
+//    if ((PRNG_data == TRUE) && memory_full_flag == FALSE )
+//      fill_memory();
 
   }
+  
 }
 ///////////////////////////////////////////////////////////////////////////
 // GP Timer0 Interrupt handler 

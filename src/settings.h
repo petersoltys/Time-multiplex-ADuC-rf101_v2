@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-18-g4348fc0
+   @version     'V2.2'-19-gfa31c0a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        27.06.2016(DD.MM.YYYY) 
+   @date        01.10.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -209,7 +209,7 @@
     @see    flushBufferedPackets()
     @param  time :{7000 ~ 0.8ms}
  **/
-#define DMA_TIMEOUT 50000     //max time(number of increments) to response of slave 
+#define DMA_TIMEOUT 100000     //max time(number of increments) to response of slave 
 
  /**
     @brief  max number of receiving timeouts to restart receiving operation
@@ -253,20 +253,20 @@
  /** @brief  number of actual slave
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define SLAVE_ID 4                    //Slave == 1..4 number
+#define SLAVE_ID 1                    //Slave == 1..4 number
 //slave identificating macros
  /** @brief  format of slot identificator  
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define TIME_SLOT_ID_SLAVE "4slot"    //number in string is Slave == 1..4 number
+#define TIME_SLOT_ID_SLAVE "1slot"    //number in string is Slave == 1..4 number
  /** @brief  format of zero packet
      @param slave number{1 - NUM_OF_SLAVE} first number
  **/
-#define ZERO_PACKET "400"             //first number in string is Slave == 1..4 number
+#define ZERO_PACKET "100"             //first number in string is Slave == 1..4 number
  /** @brief  format of retransmision packet
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define RETRANSMISION_ID "4RE"        //number in string is Slave == 1..4 number
+#define RETRANSMISION_ID "1RE"        //number in string is Slave == 1..4 number
 
 
 //head definition
@@ -334,9 +334,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-18-g4348fc0
+	- Version:  'V2.2'-19-gfa31c0a
 	- Hardware: ADucRF101MKxZ
-	- Date:       27.06.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       01.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

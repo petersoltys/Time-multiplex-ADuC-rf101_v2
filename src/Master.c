@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-18-g4348fc0
+   @version     'V2.2'-19-gfa31c0a
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        27.06.2016(DD.MM.YYYY)
+   @date        01.10.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -385,7 +385,7 @@ void setTransfer(void){
         }
       }
       else{
-        //dma_printf("\nmissing packet %d ",dmaTxPkt+1);        //message about missing packet
+        //dma_printf("\nmissing packet %d #",dmaTxPkt+1);        //message about missing packet
       }
       dmaTxPkt++;
     }
@@ -507,7 +507,7 @@ uint8_t validPacket(void){
   }
   
   if (slv != slave_ID)    //check of slave id (number) expected/transmiting
-    dma_printf("\nslave id dismatch or not recognizet packet#");
+    dma_printf("\nslave id dismatch or not recognizet packet %d instead %d#",slv,slave_ID);
   
   if (actualPacket==0)    //if zero packet
     return 0;
@@ -725,7 +725,7 @@ int8_t receivePackets(void){
       if ((actualPacket >= pktMemory[actualRxBuffer].numOfPkt))
         return received;
     }
-    else {                  //try retransmit again if no one received packet 
+    else {                  //try retransmit again if no one packet received  
       if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
           //send slot identificator
@@ -942,7 +942,6 @@ void checkIntegrityOfFirmware(void){
 **/
 int main(void)
 { 
-  
 
   WdtGo(T3CON_ENABLE_DIS);
   memset(pktMemory, 0, sizeof(pktMemory));  
@@ -967,7 +966,7 @@ int main(void)
       
       
       #if CHECK_PRNG_LOCAL
-      checkRandomBufferedPackets();
+      checkRandomBufferedPackets();   //check received data localy
       #else
       flushBufferedPackets();         //send on UART received packets
       #endif
@@ -1066,7 +1065,7 @@ void DMA_UART_TX_Int_Handler (void)
 #endif
       }
       else{
-        dma_printf("\nmissing packet %d ",dmaTxPkt+1);        //message about missing packet
+        dma_printf("\nmissing packet %d#",dmaTxPkt+1);        //message about missing packet
       }
       dmaTxPkt++;
       dmaTxTimeoutCounter = 0;
