@@ -8,10 +8,10 @@
 
              
 
-   @version     'V2.2'-19-gfa31c0a
-   @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        01.10.2016(DD.MM.YYYY)
+   @supervisor  doc. Ing. Milos Drutarovsky Phd.
+   @version     
+   @date        09.10.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 

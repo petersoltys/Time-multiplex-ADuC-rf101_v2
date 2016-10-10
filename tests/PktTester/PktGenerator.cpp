@@ -4,17 +4,17 @@
 
 #define PACKET_LEN 24
 
-int slaveID = 1;
-int comPort = 7;
-int baudRate = 9600;
-int delay = 0;
+uint16_t slaveID = 1;
+uint16_t comPort = 7;
+uint16_t baudRate = 9600;
+uint16_t delay = 0;
 
 
 //to ensure arrangement variables in byte by byte grid structure (without "bubles")
 //is used directive #pragma pack(1)
 #pragma pack(1)
 struct rand_pkt {
-  char  slave_id;
+  uint8_t  slave_id;
   uint32_t  randomPktNum;
   #if WEEAK_RANDOM_FUNCTION == 1
   static unsigned long next;    //variable for PRNG
@@ -22,7 +22,7 @@ struct rand_pkt {
   long next;                    //variable for PRNG
   #endif
   int16_t  rnadom;
-  char  pktTerminator;
+  uint8_t  pktTerminator;
 } random_packet;
 
 /**
@@ -131,7 +131,8 @@ int main(int argc, char *argv[])
 {
     char *ptr;
     uint8_t packetBufferHexa[PACKET_LEN*2];
-    int i;
+    int16_t i,n;
+    uint8_t buf[4095]; // buffer for reading message
     for (i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
            if (argv[i][1] == 'd') // -d delay parameter
@@ -226,6 +227,23 @@ int main(int argc, char *argv[])
             //RS232_SendBuf(comPort-1,(unsigned char*)&packetBufferHexa,PACKET_LEN-1);//function is not waiting for transfer completing
             RS232_cputs(comPort-1,(char *)&packetBufferHexa);
             Sleep(delay);
+            
+            //read UART buffer if avaliable
+            n = RS232_PollComport(comPort-1, buf, 4095);
+
+            if(n > 0)
+            {
+              buf[n] = 0;   /* always put a "null" at the end of a string! */
+
+              for(i=0; i < n; i++)
+              {
+                if(buf[i] < 32)  /* replace unreadable control-codes by dots */
+                {
+                  buf[i] = '.';
+                }
+                printf("%s", n, (char *)buf);
+              }
+            }
         }
     }
     return 0;

@@ -3,11 +3,11 @@ Program using time multiplex for transmiting data from optionaly number of Slave
 
 Debuged for ADucRF101MKxZ development kit
 
-- Supervisor: 	doc. Ing. Milos Drutarovsky Phd.
 - Author:   	Peter Soltys
-- Version:      'V2.2'-19-gfa31c0a
+- Supervisor: 	doc. Ing. Milos Drutarovsky Phd.
+- Version:      
 - Hardware: 	ADucRF101MKxZ
-- Date:         01.10.2016
+- Date:         09.10.2016
 - Project:  	Time-multiplex-ADuc-RF101
 
 

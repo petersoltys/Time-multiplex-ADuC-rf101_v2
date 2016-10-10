@@ -1,12 +1,19 @@
+REM brief       This bat file is strating simultaneously PktGenerator at different com ports with different slave id
+
+REM author      Bc. Peter Soltys
+REM supervisor  doc. Ing. Milos Drutarovsky Phd.
+REM version     initial
+REM date        06.10.2016(DD.MM.YYYY)
+
 @echo off
-::cd "C:\Users\Pepa\Documents\Qt\build-PktGenerator-Desktop_Qt_5_6_0_MinGW_32bit-Profile\release"
-start PktGenerator.exe 7 1
+start PktGenerator.exe 7 1 
+::com 7 slave 1
 
-::cd "C:\Users\Pepa\Documents\Qt\build-PktGenerator-Desktop_Qt_5_6_0_MinGW_32bit-Profile\release"
-start PktGenerator.exe 9 2 
+start PktGenerator.exe 11 2 
+::com 9 slave 2
 
-::cd "C:\Users\Pepa\Documents\Qt\build-PktGenerator-Desktop_Qt_5_6_0_MinGW_32bit-Profile\release"
-REM start PktGenerator.exe 2 3
+start PktGenerator.exe 12 3
+::com 2 slave 3
 
-::cd "C:\Users\Pepa\Documents\Qt\build-PktGenerator-Desktop_Qt_5_6_0_MinGW_32bit-Profile\release"
-REM start PktGenerator.exe 2 4
+start PktGenerator.exe 13 4
+::com 5 slave 4

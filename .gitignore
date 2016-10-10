@@ -84,7 +84,7 @@ obj
 *.app
 *.i*86
 *.x86_64
-*.hex
+#*.hex
 
 # Debug files
 *.dSYM/
@@ -92,3 +92,5 @@ JLinkLog.txt
 JLinkLog.txt
 
 log.txt
+Build_Master.txt
+Build_Slave.txt

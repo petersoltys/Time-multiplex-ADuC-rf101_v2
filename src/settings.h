@@ -4,10 +4,10 @@
    @brief    configurating file defining base settings
 
 
-   @version     'V2.2'-19-gfa31c0a
-   @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @author      Bc. Peter Soltys
-   @date        01.10.2016(DD.MM.YYYY) 
+   @supervisor  doc. Ing. Milos Drutarovsky Phd.
+   @version     
+   @date        09.10.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -250,23 +250,33 @@
  **/
 #define UART_BAUD_RATE_SLAVE 9600
 
+
+//macros to build string
+#define MAKE_STRING(...)  #__VA_ARGS__
+#define STRING(x)       MAKE_STRING(x)
+#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
+#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
+#define CONCATENATE2(arg1, arg2)  arg1##arg2
+
  /** @brief  number of actual slave
      @param slave number{1 - NUM_OF_SLAVE}
  **/
-#define SLAVE_ID 1                    //Slave == 1..4 number
+ //Slave == 1..4 number
+#define SLAVE_ID 4
+
 //slave identificating macros
  /** @brief  format of slot identificator  
-     @param slave number{1 - NUM_OF_SLAVE}
+     @note   "1slot"
  **/
-#define TIME_SLOT_ID_SLAVE "1slot"    //number in string is Slave == 1..4 number
+#define TIME_SLOT_ID_SLAVE  STRING(CONCATENATE(SLAVE_ID,slot))    //number in string is Slave == 1..4 number
  /** @brief  format of zero packet
-     @param slave number{1 - NUM_OF_SLAVE} first number
+     @note   "100"
  **/
-#define ZERO_PACKET "100"             //first number in string is Slave == 1..4 number
+#define ZERO_PACKET STRING(CONCATENATE(SLAVE_ID,00))             //first number in string is Slave == 1..4 number
  /** @brief  format of retransmision packet
-     @param slave number{1 - NUM_OF_SLAVE}
+     @note   "1RE"
  **/
-#define RETRANSMISION_ID "1RE"        //number in string is Slave == 1..4 number
+#define RETRANSMISION_ID STRING(CONCATENATE(SLAVE_ID,RE))        //number in string is Slave == 1..4 number
 
 
 //head definition
@@ -334,9 +344,9 @@
 	Debuged for ADucRF101MKxZ development kit
 
 	- Author:   Peter Soltys
-	- Version:  'V2.2'-19-gfa31c0a
+	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       01.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       09.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
