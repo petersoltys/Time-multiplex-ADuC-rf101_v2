@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        09.10.2016(DD.MM.YYYY)
+   @date        11.10.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -329,7 +329,33 @@ uint8_t rf_printf(const char * format /*format*/, ...){
   va_end( args );
   return len;
 }
+/**
+   @fn     void hexaToBin(uint8_t* from, uint8_t* to, uint16_t len )
+   @brief  function is converting ASCII chars for hexadecimal system to binary
+   @param  uint8_t* from : pointer at binary data in memory
+   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
+   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
+   @note   input lenght in source memory place is double lenght as destination lenght
+**/
+void hexaToBin(uint8_t* from, uint8_t* to, uint16_t len ){
+    uint8_t ch1, ch2;
+    uint16_t i;
+    for (i=0;i<len/2;i++){    //conversion to binary data from ascii chars 0 ... F
+      ch1 = *from - '0';
+      from++;
+      ch2 = *from - '0';
+      from++;
+      
+      if (ch1 > 9)                        //because ASCII table is 0123456789:;<=>?@ABCDEF
+        ch1 -= 7;
 
+      if (ch2 > 9)                        //because ASCII table is 0123456789:;<=>?@ABCDEF
+        ch2 -= 7;
+
+      to[i] = ((ch1<<4) | (ch2));
+      to++;
+    }
+}
 /** 
    @fn     void binToHexa(uint8_t* from, uint8_t* to, uint16_t len )
    @brief  function to converting binarz data to ASCII chars for hexadecimal system
@@ -847,10 +873,12 @@ void checkRandomBufferedPackets(void){
     
     //pointer in packet memory
     rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer].packet[packet][HEAD_LENGHT]; 
+    
     if (pktMemory[actualRxBuffer].packet[packet][1] == 'w')
       printf("\nmissing packet %d#",packet);
     else{
       for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/PRNG_PKT_LEN); word > 0 ; word --){
+        hexaToBin((uint8_t*)rnd_pkt_in_memory,(uint8_t*)rnd_pkt_in_memory,PRNG_PKT_LEN-1);
         //check one random word
         if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
           if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id

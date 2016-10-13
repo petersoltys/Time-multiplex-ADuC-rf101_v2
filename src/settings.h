@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        09.10.2016(DD.MM.YYYY) 
+   @date        11.10.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -50,8 +50,8 @@
 
 /**
    @param BaseConfig :{DR_1_0kbps_Dev10_0kHz , DR_38_4kbps_Dev20kHz ,DR_300_0kbps_Dev75_0kHz }
-      - DR_1_0kbps_Dev10_0kHz  Base configuration of 1 kbps datarate, 10.0 kHz frequency deviation.
-      - DR_38_4kbps_Dev20kHz  Base configuration of 38.4 kbps datarate, 20 kHz frequency deviation.
+      - DR_1_0kbps_Dev10_0kHz    Base configuration of 1 kbps datarate, 10.0 kHz frequency deviation.
+      - DR_38_4kbps_Dev20kHz     Base configuration of 38.4 kbps datarate, 20 kHz frequency deviation.
       - DR_300_0kbps_Dev75_0kHz  Base configuration of 300 kbps datarate, 75 kHz frequency deviation.
 **/
 #define RADIO_CFG         DR_300_0kbps_Dev75_0kHz 
@@ -305,7 +305,7 @@
 /*! @brief start checking PRNG packets local (on master} 
     @note  packets are not streamed on UART only messages
 */
-#define CHECK_PRNG_LOCAL 0
+#define CHECK_PRNG_LOCAL 1
 #define PRNG_PKT_LEN 12   /*!< @brief lenght in bytes of PRNG packet */
 #define RAND_SEED 500     /*!< @brief initial number for PRNG */
 /**
@@ -346,7 +346,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       09.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       11.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

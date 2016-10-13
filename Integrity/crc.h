@@ -16,9 +16,10 @@
 #ifndef _crc_h
 #define _crc_h
 
-
+#ifndef TRUE
 #define FALSE	0
 #define TRUE	!FALSE
+#endif
 
 /*
  * Select the CRC standard from the list that follows.

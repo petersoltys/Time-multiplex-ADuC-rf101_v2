@@ -10,18 +10,20 @@
 CC=g++
 
 # options I'll pass to the compiler.
-CFLAGS=-std=c++11
+CFLAGS=-std=c++11 -m32
 
 # common files RS232
 CRS232= RS232\rs232.c
+CPRNG= PRNG.c
+CCRC= ../../Integrity/crc.c 
 
 all: PktGenerator PktReader
 
 PktGenerator: 
-	$(CC) $(CFLAGS) $(CRS232) PktGenerator.cpp -o PktGenerator
+	$(CC) $(CFLAGS) $(CRS232) $(CPRNG) $(CCRC) PktGenerator.cpp -o PktGenerator
 
 PktReader: 
-	$(CC) $(CFLAGS) $(CRS232) PktReader.cpp -o PktReader
+	$(CC) $(CFLAGS) $(CRS232) $(CPRNG) $(CCRC) PktReader.cpp -o PktReader
 
 clean:
 	del *exe
