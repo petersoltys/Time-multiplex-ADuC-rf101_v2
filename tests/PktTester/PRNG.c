@@ -28,7 +28,7 @@ static int16_t PRNGrand(struct PRNGslave * slave) // RAND_MAX assumed to be 3276
 }
 
 /**
-   @fn     void PRNGinit(struct PRNGslave * slave, uint8_t numberOfSlaves )
+   @fn     void PRNGinit(struct PRNGslave * slave, uint8_t numberOfSlave )
    @brief  PRNGinit is initializing values for PRNG slaves
    @param  struct PRNGslave * slave : pointer to array of slave structures
    @param  uint8_t numberOfSlaves : number of slaves in array
@@ -38,11 +38,11 @@ static int16_t PRNGrand(struct PRNGslave * slave) // RAND_MAX assumed to be 3276
         PRNGinit(slaves,numberOfSlave);
    @endcode
 **/
-void PRNGinit(struct PRNGslave * slave, uint8_t numberOfSlave )
+void PRNGinit(struct PRNGslave * slave, uint8_t numberOfSlav )
 {
     crcInit();
     PRNGsrand(SEED,slave);
-    slave->packet.slave_id = numberOfSlave;
+    slave->packet.slave_id = numberOfSlav;
     slave->packet.numberOfPacket = 0;
     slave->numberOfMissingPackets = 0;
     slave->numberOfReceivedPackets = 0;
@@ -147,11 +147,11 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                 if(PRNGcheckRandom(localSlave,receivedPkt)){
                     strcpy((char *)message,"\nwrong random number? even if CRC is correct ?#");
                     localSlave->numberOfReceivedPackets ++;
-                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket);
+                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket)*2;
                     return 1;
                 }else{
                     localSlave->numberOfReceivedPackets ++;
-                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket);
+                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket)*2;
                     return 0;
                 }
             }else{/*if number of packet does not match*/
@@ -170,7 +170,7 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                         strcat((char *)message,"\nwrong random number? even if CRC is correct ?#");
                     }
                     localSlave->numberOfReceivedPackets ++;
-                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket);
+                    localSlave->receivedBytes += sizeof(struct PRNGrandomPacket)*2;
                     return 1;
                 }else{/*if oreder of packets is switched*/
                     missing = localSlave->packet.numberOfPacket - receivedPkt->numberOfPacket;
@@ -179,7 +179,8 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                         localSlave->numberOfMissingPackets += (2^16 - missing);
                         return 1;
                     }else if (missing > MAX_DIFF){
-                        sprintf((char *)message,"\npacket number is less than expected, switched order ? diff %d of slave %d is very big, probably PktGenerator was restarted#",missing,receivedPkt->slave_id);
+                        sprintf((char *)message,"\npacket number is less than expected, switched order ? diff %d of slave %d , probably PktGenerator was restarted?#",missing,receivedPkt->slave_id);
+                        sprintf((char *)message,"\nstatistics was : %d of received packets and %d of missing packets#",message,localSlave->numberOfReceivedPackets,localSlave->numberOfMissingPackets);
                         localSlave->next = SEED;
                         localSlave->numberOfMissingPackets = 0;
                         localSlave->numberOfReceivedPackets = 0;

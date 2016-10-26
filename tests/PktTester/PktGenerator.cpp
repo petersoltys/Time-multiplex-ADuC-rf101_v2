@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
         return(0);
     }else{
         printf("com port uspesne otvoreny\n");
+        RS232_flushRXTX(comPort -1);
         while(1){
             PRNGnew(&slave);  // generate new packet
 
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
               buf[n] = 0;   /* always put a "null" at the end of a string! */
               for(i=0; i < n; i++)
               {
-                if(buf[i] < 32)  /* replace unreadable control-codes by dots */
+                if(buf[i] < 32 && buf[i] != '\n')  /* replace unreadable control-codes by dots */
                 {
                   buf[i] = '.';
                 }

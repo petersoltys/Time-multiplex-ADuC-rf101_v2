@@ -12,7 +12,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        11.10.2016(DD.MM.YYYY) 
+   @date        13.10.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -73,22 +73,7 @@ struct pkt_memory {
 }pktMemory[2];
 
 uint8_t PRNG_data = FALSE;   //flag to set random data generation
-
-//to ensure arrangement variables in byte by byte grid structure (without "bubles")
-//is used directive #pragma pack(1)
-#pragma pack(1)
-struct rand_pkt {
-  char  slave_id;
-  uint32_t  randomPktNum;
-  #if WEEAK_RANDOM_FUNCTION == 1
-  static unsigned long next;    //variable for PRNG
-  #else
-  long next;                    //variable for PRNG
-  #endif
-  int16_t rnadom;
-  char  PktTerminator;
-} random_packet;  
-
+struct PRNGslave slavePRNG;
 
 char actualRxBuffer=0;
 char actualTxBuffer=1;
@@ -508,68 +493,6 @@ uint8_t button_pushed(void){
     return 1;
 }
 /** 
-   @fn     void srandc(unsigned int seed)
-   @brief  function is setting initial value of PRNG
-   @see    randc(void)
-**/
-void srandc(unsigned int seed)
-{
-  #if WEEAK_RANDOM_FUNCTION == 1
-  random_packet.next = seed;
-  #else
-  random_packet.next = (long)seed;
-  #endif
-}
-/** 
-   @fn     int randc(void)
-   @brief  PRNG function of linear kongurent generator
-   @note   before first fun should be initialized seed value
-   @note   PRNG values can change by macro WEEAK_RANDOM_FUNCTION
-   @see    WEEAK_RANDOM_FUNCTION
-   @see    srandc()
-   @return int - rnadom number
-**/
-int randc(void) // RAND_MAX assumed to be 32767
-{
-  #if WEEAK_RANDOM_FUNCTION == 1
-  //official ANSI implementation
-    random_packet.next = random_packet.next * 1103515245 + 12345;
-    return (unsigned int)(random_packet.next/65536) % 32768;
-  #else
-  //official random implementation for C from CodeGuru forum
-    return(((random_packet.next = random_packet.next * 214013L + 2531011L) >> 16) & 0x7fff);
-  #endif
-}
-
-/**
-   @fn     void binToHexa(uint8_t* from, uint8_t* to, uint16_t len )
-   @brief  function to converting binarz data to ASCII chars for hexadecimal system
-   @param  uint8_t* from : pointer at binary data in memory
-   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
-   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
-   @note   output lenght in destination memory place is double lenght as source lenght
-**/
-void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
-
-  uint16_t i;
-  for (i = 0 ; i < len ; i++){    //conversion of binary data to ascii chars 0 ... F
-    *to = ((*from & 0xf0)>>4)+'0';
-    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      *to += 7;
-
-    to++;                  //increment pointer
-
-    *to = (*from & 0x0f) + '0';
-    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      *to += 7;
-
-    to++;                 //increment pointer
-    from++;
-  }
-  *to = '$';
-}
-
-/** 
    @fn     void main(void)
    @brief  function is filling memory with PRNG data to verify stability of design
    @note   function is turn off DMA interrupt of UART
@@ -582,30 +505,18 @@ void fill_memory(void){
   for (i = 0; i < NUM_OF_PACKETS_IN_MEMORY; i++){
     pktptr = &pktMemory[actualRxBuffer].packet[i][0];
     len = HEAD_LENGHT;
-    while(len < (PACKET_MEMORY_DEPTH-HEAD_LENGHT)-(PRNG_PKT_LEN*2) ){
-      random_packet.randomPktNum ++;
-      random_packet.rnadom = randc();
-      binToHexa((uint8_t*)&random_packet, &pktptr[len], PRNG_PKT_LEN-1);
+    while(len < (PACKET_MEMORY_DEPTH-HEAD_LENGHT)-(sizeof(struct PRNGslave)*2) ){
+      PRNGnew(&slavePRNG);
+      binToHexa((uint8_t*)&slavePRNG.packet, &pktptr[len], sizeof(struct PRNGrandomPacket));
+      pktptr[len + (sizeof(struct PRNGrandomPacket)*2)] = '$';
       //memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
-      len += (PRNG_PKT_LEN*2)-1;
+      len += (sizeof(struct PRNGrandomPacket)*2)+1;
     }
     pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = len-HEAD_LENGHT;
     pktMemory[actualRxBuffer].numOfPkt++;
   }  
   memory_full_flag = TRUE;
   NVIC_EnableIRQ ( DMA_UART_RX_IRQn );    // Enable DMA UART RX interrupt
-}
-/** 
-   @fn     void random_init(void)
-   @brief  initialize all nesessary values for PRNG
-**/
-void random_init(void){
-  random_packet.PktTerminator = '$';
-  random_packet.slave_id = SLAVE_ID;
-  random_packet.randomPktNum = 0;
-  random_packet.next = 0;
-  random_packet.rnadom = 0;
-  srandc(RAND_SEED);
 }
 
 /**
@@ -635,11 +546,11 @@ void checkIntegrityOfFirmware(void){
   #endif
   
   if (retval == 0){
-    printf("\nintegrity check ok#");
+    puts("\nintegrity check ok#");
     LED_ON;
   }
   else{
-    printf("\nproblem in integrity of firmware #");  
+    puts("\nproblem in integrity of firmware #");  
     LED_OFF;
     //while(1);
   }
@@ -652,8 +563,8 @@ void checkIntegrityOfFirmware(void){
    @return int 
 **/
 int main(void)
-{   
-  memset(pktMemory, 0, sizeof(pktMemory)); 
+{
+  memset(pktMemory, 0, sizeof(pktMemory));
   WdtGo(T3CON_ENABLE_DIS);    //stop watch-dog
     
   //initialize all interfaces
@@ -661,7 +572,6 @@ int main(void)
   uart_init();
   checkIntegrityOfFirmware();
   led_init();
-  random_init();
   
   radioInit();    //inicialize radio conection
     
@@ -689,20 +599,21 @@ int main(void)
     else {
       LED_OFF;
     }
-    
+    /*PRNG settings*/
     if (button_pushed()){   //(re)initialize PRNG
       if ((PRNG_data == TRUE) && memory_full_flag == FALSE ){
         fill_memory();
       }
       else if (PRNG_data == FALSE){
         PRNG_data = TRUE;
-        srandc(RAND_SEED);
-        random_packet.randomPktNum = 0;
+        PRNGinit(&slavePRNG,SLAVE_ID);
       }
     }
+    #if PRNG_CONTINUAL_GENERATING 
     //fill up the memory
-//    if ((PRNG_data == TRUE) && memory_full_flag == FALSE )
-//      fill_memory();
+    if ((PRNG_data == TRUE) && memory_full_flag == FALSE )
+      fill_memory();
+    #endif
 
   }
   

@@ -49,6 +49,8 @@ to ensure that the resulting application performs as required and is safe.
 #include "WdtLib.h"
 #include "WutLib.h"
 #include "crc.h"
+#include "PRNG.h"
+
 
 
 #endif // __INCLUDE_H

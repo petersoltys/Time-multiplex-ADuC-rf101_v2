@@ -14,5 +14,7 @@ It is the responsibility of the person integrating this code into an application
 to ensure that the resulting application performs as required and is safe.
 		
 **/
-
+#ifndef TRUE
 typedef enum {FALSE = 0, TRUE = !FALSE} boolean;
+#endif
+

@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        11.10.2016(DD.MM.YYYY) 
+   @date        13.10.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -176,7 +176,7 @@
             macro set size of packet memory
     @param  number of slave devices :{1 , 10} 4
  **/
-#define NUM_OF_SLAVE 4  //number of slave devices
+#define NUMBER_OF_SLAVES 4  //number of slave devices
 
  /**
     @brief  lenght of received packets from UART
@@ -259,7 +259,7 @@
 #define CONCATENATE2(arg1, arg2)  arg1##arg2
 
  /** @brief  number of actual slave
-     @param slave number{1 - NUM_OF_SLAVE}
+     @param slave number{1 - NUMBER_OF_SLAVES}
  **/
  //Slave == 1..4 number
 #define SLAVE_ID 4
@@ -305,29 +305,10 @@
 /*! @brief start checking PRNG packets local (on master} 
     @note  packets are not streamed on UART only messages
 */
-#define CHECK_PRNG_LOCAL 1
+#define PRNG_CONTINUAL_GENERATING 0 /*!< @brief system of generating PRNG packets 1=only during pushed button 0=automaticaly after first push */
+#define CHECK_PRNG_LOCAL 1 /*!< @brief build checking of packet localy at master device */
 #define PRNG_PKT_LEN 12   /*!< @brief lenght in bytes of PRNG packet */
 #define RAND_SEED 500     /*!< @brief initial number for PRNG */
-/**
-  @brief settings of used implementation of random function
-  @param {0-1}
-          - if ==0 better implemetntation from CodeGuru
-          - if ==1 is used historical random function (very weak quality)
-  @code
-  //oficial implementation of random function from CodeGuru
-      void __cdecl srand (unsigned int seed)
-    {
-            holdrand = (long)seed;
-    }
-
-    int __cdecl rand (void)
-    {
-        return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
-    }
-**/
-#define WEEAK_RANDOM_FUNCTION 0 
-
-          
           
 
 
@@ -346,7 +327,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       11.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       13.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

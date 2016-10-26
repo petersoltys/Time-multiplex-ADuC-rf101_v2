@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        11.10.2016(DD.MM.YYYY)
+   @date        13.10.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -32,6 +32,7 @@
 
 **/
 #include <stdarg.h>
+#include "PRNG.h"
 #include "library.h"
 #include "settings.h"
 
@@ -112,23 +113,7 @@ uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
 uint8_t  dmaTxPktTotal;
 uint16_t dmaTxTimeoutCounter=0;
 
-#if CHECK_PRNG_LOCAL
-//to ensure arrangement variables in byte by byte grid structure (without "bubles")
-//is used directive #pragma pack(1)
-#pragma pack(1)
-struct rand_pkt {
-  char  Slave;
-  char  slave_id;
-  uint32_t  randomPktNum;
-  #if WEEAK_RANDOM_FUNCTION == 1
-  static unsigned long next;    //variable for PRNG
-  #else
-  long next;                    //variable for PRNG
-  #endif
-  int16_t  rnadom;
-} random_pkt[NUM_OF_SLAVE];  
-
-#endif
+struct PRNGslave slaves[NUMBER_OF_SLAVES];
 
 void DMA_UART_TX_Int_Handler (void);
 
@@ -329,60 +314,7 @@ uint8_t rf_printf(const char * format /*format*/, ...){
   va_end( args );
   return len;
 }
-/**
-   @fn     void hexaToBin(uint8_t* from, uint8_t* to, uint16_t len )
-   @brief  function is converting ASCII chars for hexadecimal system to binary
-   @param  uint8_t* from : pointer at binary data in memory
-   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
-   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
-   @note   input lenght in source memory place is double lenght as destination lenght
-**/
-void hexaToBin(uint8_t* from, uint8_t* to, uint16_t len ){
-    uint8_t ch1, ch2;
-    uint16_t i;
-    for (i=0;i<len/2;i++){    //conversion to binary data from ascii chars 0 ... F
-      ch1 = *from - '0';
-      from++;
-      ch2 = *from - '0';
-      from++;
-      
-      if (ch1 > 9)                        //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch1 -= 7;
-
-      if (ch2 > 9)                        //because ASCII table is 0123456789:;<=>?@ABCDEF
-        ch2 -= 7;
-
-      to[i] = ((ch1<<4) | (ch2));
-      to++;
-    }
-}
-/** 
-   @fn     void binToHexa(uint8_t* from, uint8_t* to, uint16_t len )
-   @brief  function to converting binarz data to ASCII chars for hexadecimal system
-   @param  uint8_t* from : pointer at binary data in memory
-   @param  uint8_t* to : pointer at destination place in memory for hexadecimal ASCII chars
-   @param  uint16_t len : source (binary) lenght of data, hexadecimal data are *2 lenght
-   @note   output lenght in destination memory place is double lenght as source lenght
-**/
 #if HEXA_TRANSFER
-void binToHexa(uint8_t* from, uint8_t* to, uint16_t len ){
-
-  uint16_t i;
-  for (i = 0 ; i < len ; i++){    //conversion of binary data to ascii chars 0 ... F 
-    *to = ((*from & 0xf0)>>4)+'0';
-    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      *to += 7;
-    
-    to++;                  //increment pointer
-    
-    *to = (*from & 0x0f) + '0';
-    if (*to > '9')         //because ASCII table is 0123456789:;<=>?@ABCDEF
-      *to += 7;
-        
-    to++;                 //increment pointer
-    from++;
-  }
-}
 
 /** 
    @fn     void setTransfer(void)
@@ -541,7 +473,7 @@ uint8_t validPacket(void){
   //if number of packet is in range
   if (actualPacket > 0 && actualPacket <= NUM_OF_PACKETS_IN_MEMORY)
     //if number of slave is in range
-    if (slv <= NUM_OF_SLAVE && slv > 0)
+    if (slv <= NUMBER_OF_SLAVES && slv > 0)
         //if expected total number of packet is same as at begining
         if (pktNum == pktMemory[actualRxBuffer].numOfPkt)
           return 1;
@@ -781,7 +713,7 @@ int8_t receivePackets(void){
 **/
 void initializeNewSlot(void){
   slave_ID++;     //increment slave number 
-  if (slave_ID > NUM_OF_SLAVE)
+  if (slave_ID > NUMBER_OF_SLAVES)
     slave_ID = 1;
   
   timeSlotString[0] = (slave_ID + '0');
@@ -810,109 +742,46 @@ void SetInterruptPriority (void){
 **/
 
 #if CHECK_PRNG_LOCAL
-void srandc(unsigned int seed , struct rand_pkt* random_packet)
-{
-  #if WEEAK_RANDOM_FUNCTION == 1
-  random_packet.next = seed;
-  #else
-  random_packet->next = (long)seed;
-  #endif
-}
-/** 
-   @fn     int randc(void)
-   @brief  PRNG function of linear kongurent generator
-   @note   before first fun should be initialized seed value
-   @note   PRNG values can change by macro WEEAK_RANDOM_FUNCTION
-   @see    WEEAK_RANDOM_FUNCTION
-   @see    srandc()
-   @return int - rnadom number
-**/
-int randc(struct rand_pkt* random_packet) // RAND_MAX assumed to be 32767
-{
-  #if WEEAK_RANDOM_FUNCTION == 1
-  //official ANSI implementation
-    random_packet->next = random_packet->next * 1103515245 + 12345;
-    return (unsigned int)(random_packet->next/65536) % 32768;
-  #else
-  //official random implementation for C from CodeGuru forum
-    return(((random_packet->next = random_packet->next * 214013L + 2531011L) >> 16) & 0x7fff);
-  #endif
-}
 
 /** 
    @fn     void initializeRandomCheck(void)
    @brief  initializing values for reference PRNG
-   @note   before first fun should be initialized seed value
-   @see    WEEAK_RANDOM_FUNCTION
-   @see    srandc()
-   @return int - rnadom number
 **/
 void initializeRandomCheck(void){
-  char slave;
+  char i;
   //initialize random packets
-  for (slave = 0;slave < NUM_OF_SLAVE; slave++){
-    random_pkt[slave].Slave = 'S';
-    random_pkt[slave].slave_id = slave+1;
-    random_pkt[slave].randomPktNum = 0;
-    random_pkt[slave].next = RAND_SEED;
+  for(i=0; i<NUMBER_OF_SLAVES;i++){
+    PRNGinit(&slaves[i],i+1);
   }
 }
 
 /** 
-   @fn     checkRandomBufferedPackets(void)
+   @fn     checkBufferedRandomPackets(void)
    @brief  comparing local and received PRNG packet 
    @note   defining this function set CHECK_PRNG_LOCAL macro to 1
    @see    srandc()
 **/
-void checkRandomBufferedPackets(void){
-  uint8_t packet, word;
-  uint32_t temp_pkt_num_ref, temp_pkt_num_mem;
-  struct rand_pkt *rnd_pkt_in_memory, *rnd_pkt_ref;
+void checkBufferedRandomPackets(void){
+  uint8_t packet, word, * rnd_pkt_in_memory;
+  char message[100];
   
   for(packet = 0; packet < pktMemory[actualRxBuffer].numOfPkt; packet++){
     
     //pointer in packet memory
-    rnd_pkt_in_memory = (struct rand_pkt*) &pktMemory[actualRxBuffer].packet[packet][HEAD_LENGHT]; 
+    rnd_pkt_in_memory = &pktMemory[actualRxBuffer].packet[packet][HEAD_LENGHT]; 
     
     if (pktMemory[actualRxBuffer].packet[packet][1] == 'w')
-      printf("\nmissing packet %d#",packet);
+      printf("\nmissing radio packet %d#",packet);
     else{
-      for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/PRNG_PKT_LEN); word > 0 ; word --){
-        hexaToBin((uint8_t*)rnd_pkt_in_memory,(uint8_t*)rnd_pkt_in_memory,PRNG_PKT_LEN-1);
+      for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/((sizeof(struct PRNGrandomPacket)*2)+1)); word > 0 ; word --){
+        hexaToBin((uint8_t*)rnd_pkt_in_memory,(uint8_t*)rnd_pkt_in_memory,sizeof(struct PRNGrandomPacket));
         //check one random word
-        if (rnd_pkt_in_memory->Slave == 'S'){ //if random Packet start char
-          if (rnd_pkt_in_memory->slave_id <= NUM_OF_SLAVE){ //if valid slave id
-            //initialze new random word
-            rnd_pkt_ref = &random_pkt[rnd_pkt_in_memory->slave_id-1];
-            rnd_pkt_ref->randomPktNum++;
-            rnd_pkt_ref->rnadom = randc(rnd_pkt_ref);
-            if (rnd_pkt_ref->randomPktNum == rnd_pkt_in_memory->randomPktNum){
-              if (rnd_pkt_ref->next == rnd_pkt_in_memory->next){
-                if (rnd_pkt_ref->rnadom == rnd_pkt_in_memory->rnadom){
-                  //packet valid
-                }else{
-                  printf("\nwrong random number#");
-                }
-              }else{
-                printf("\nwrong seed number at packet number %d#",rnd_pkt_ref->randomPktNum);
-                //set values to synchronization
-                rnd_pkt_ref->next = rnd_pkt_in_memory->next;
-              }
-            }else{
-              temp_pkt_num_ref = rnd_pkt_ref->randomPktNum;
-              temp_pkt_num_mem = rnd_pkt_in_memory->randomPktNum;
-              printf("\nmissing %d words#",(temp_pkt_num_mem - temp_pkt_num_ref));
-              //set values to synchronization
-              rnd_pkt_ref->randomPktNum = rnd_pkt_in_memory->randomPktNum;
-              rnd_pkt_ref->next = rnd_pkt_in_memory->next;
-            }
-          }else{
-            printf("\nslave number is out of range#");
-          }
-        }else{
-          printf("\nwrong synchronizing of packet#");
+        if (PRNGcheck(slaves,(struct PRNGrandomPacket*)rnd_pkt_in_memory,(uint8_t*)message,NUMBER_OF_SLAVES))
+            puts(message);
+        else{
+            //puts("packet is valid");
         }
-        rnd_pkt_in_memory ++;
+        rnd_pkt_in_memory += (sizeof(struct PRNGrandomPacket)*2)+1;
       }
     }
   }
@@ -994,7 +863,7 @@ int main(void)
       
       
       #if CHECK_PRNG_LOCAL
-      checkRandomBufferedPackets();   //check received data localy
+      checkBufferedRandomPackets();   //check received data localy
       #else
       flushBufferedPackets();         //send on UART received packets
       #endif

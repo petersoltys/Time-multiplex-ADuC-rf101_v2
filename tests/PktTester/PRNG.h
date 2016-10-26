@@ -1,8 +1,5 @@
-#ifndef PRNG_INCLUDED
-#define PRNG_INCLUDED
-
-
-
+#ifndef _PRNG_h
+#define _PRNG_h
 
 #define SEED 500
 #define MAX_DIFF 100
