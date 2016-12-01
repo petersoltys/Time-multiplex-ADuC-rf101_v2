@@ -159,7 +159,7 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                 if (receivedPkt->numberOfPacket > localSlave->packet.numberOfPacket){
                     /*if order of packets is correct*/
                     missing = receivedPkt->numberOfPacket - localSlave->packet.numberOfPacket;
-                    sprintf((char *)message,"\nmissing %d packets of slave %d#",missing,localPktArray->packet.slave_id);
+                    sprintf((char *)message,"\nmissing %d packets of slave %d#",missing,localSlave->packet.slave_id);
                     if (missing < MAX_DIFF)/*dont add this numnber if is higher than MAX_DIFF because probably PktReader was started after PktGenerator*/
                         localSlave->numberOfMissingPackets += missing;
                     while( missing -- ){/*generate random packet by diference*/

@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        13.10.2016(DD.MM.YYYY) 
+   @date        02.12.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -70,11 +70,13 @@
       - This must be within the available bands of the radio: 
          - 431000000Hz to 464000000Hz and 
          - 862000000Hz to 928000000Hz.
-   @note 433.92 Mhz (EU) free frequency (Bc work Oto Petura)
-         890 Mhz frequency of filter at used radio modules 
-         
+   @note 433.92 Mhz (EU) free frequency
+         890 Mhz frequency of filter at used radio modules
 **/
-#define RADIO_FREQENCY     890000000
+#define BASE_RADIO_FREQUENCY    890000000
+#define MIN_RADIO_FREQUENCY     880000000
+#define MAX_RADIO_FREQUENCY     900000000
+#define FREQ_STEP               10000
 
 /**
    @brief  PA Type for Radio Transmission. 
@@ -142,7 +144,7 @@
          - 1 if crcFast
          - 0 if crcSlow
  **/
-#define CRC_FAST 1
+#define CRC_FAST 0
 
 
  /**
@@ -185,7 +187,7 @@
           - 0 if variable lenght of packets
           - 1-240 constant lenght of packets
  **/
-#define MAX_LEN_OF_RX_PKT 24
+#define MAX_LEN_OF_RX_PKT 65
 
  /**
     @brief  time interval to interrupt for synchronization
@@ -210,6 +212,13 @@
     @param  time :{7000 ~ 0.8ms}
  **/
 #define DMA_TIMEOUT 100000     //max time(number of increments) to response of slave 
+
+/**
+    @brief  max numbers of tries to receiv packet at new frequency
+    @note   after timeout slave set BASE_FREQUENCY and is waiting for master frequency change
+    @see    BASE_FREQUENCY
+ **/
+#define FREQ_TIMEOUT 100    // max numbers of tries to receive packet at new frequency
 
  /**
     @brief  max number of receiving timeouts to restart receiving operation
@@ -306,7 +315,7 @@
     @note  packets are not streamed on UART only messages
 */
 #define PRNG_CONTINUAL_GENERATING 0 /*!< @brief system of generating PRNG packets 1=only during pushed button 0=automaticaly after first push */
-#define CHECK_PRNG_LOCAL 1 /*!< @brief build checking of packet localy at master device */
+#define CHECK_PRNG_LOCAL 0 /*!< @brief build checking of packet localy at master device */
 #define PRNG_PKT_LEN 12   /*!< @brief lenght in bytes of PRNG packet */
 #define RAND_SEED 500     /*!< @brief initial number for PRNG */
           
@@ -327,7 +336,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       13.10.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       02.12.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

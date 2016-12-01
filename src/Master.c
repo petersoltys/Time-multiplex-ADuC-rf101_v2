@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        13.10.2016(DD.MM.YYYY)
+   @date        02.12.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -70,20 +70,26 @@ struct pkt_memory {
   uint8_t lenghtOfPkt[NUM_OF_PACKETS_IN_MEMORY];
   uint8_t numOfPkt;
 }pktMemory[2];
-/*
-//            [level ][ packet num.][packet data]
-uint8_t pktMemory[2][NUM_OF_PACKETS_IN_MEMORY][PACKET_MEMORY_DEPTH];
 
-          // [level]
-char numOfPkt[2] = {0,0};   //similar like pktMemory
-                      // [level][lenght]
-uint8_t lenghtOfPkt[2][NUM_OF_PACKETS_IN_MEMORY] ;   //similar like pktMemory
-*/
+struct slaveStatistic{
+  uint8_t active;
+  uint16_t continualInactivity;
+}slave[NUMBER_OF_SLAVES];
+
+struct radioConfiguration{
+  RIE_U32 BaseFrequency ;
+  RIE_BaseConfigs BaseConfig ;
+  RIE_ModulationTypes ModulationType ;
+  RIE_PATypes PAType ;
+  RIE_PAPowerLevel Power ;
+  RIE_BOOL Whitening ;
+  RIE_BOOL Manchester ;
+}radioConf;
+RIE_U32 BestFrequency ;
+
 uint8_t actualPacket;
 
-int8_t actualRxBuffer=0,actualTxBuffer=1;
-
-uint8_t timeSlotString[6] = TIME_SLOT_ID_MASTER ;//send slot identificator
+int8_t actualRxBuffer = 0, actualTxBuffer = 1;
   
 
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
@@ -116,7 +122,101 @@ uint16_t dmaTxTimeoutCounter=0;
 struct PRNGslave slaves[NUMBER_OF_SLAVES];
 
 void DMA_UART_TX_Int_Handler (void);
+uint8_t rf_printf(const char * format /*format*/, ...);
 
+
+void WriteToFlash(uint8_t *pArray, unsigned long ulStartAddress, unsigned int uiSize)
+{
+   unsigned int uiPollFEESTA = 0;
+   volatile unsigned long *flashAddress;
+   unsigned int i = 0;
+   
+   flashAddress = ( unsigned long      *)ulStartAddress;
+   FeeWrEn(1);
+   uiPollFEESTA = FeeSta();						// Read Status to ensure it is clear
+   for (i = 0; i < uiSize; i++)
+   { 
+      uiPollFEESTA = 0;
+      *flashAddress++  = *pArray++;
+      do
+         {uiPollFEESTA = FeeSta();}
+      while((uiPollFEESTA & FEESTA_CMDBUSY) == FEESTA_CMDBUSY);
+   }  
+   FeeWrEn(0);       // disable a write to Flash memory
+   do
+     {uiPollFEESTA = FeeSta();}
+   while((uiPollFEESTA & FEESTA_CMDBUSY) == FEESTA_CMDBUSY);
+}
+
+
+//void prvGetRegistersFromStack( uint32_t *pulFaultStackAddress )
+//{
+///* These are volatile to try and prevent the compiler/linker optimising them
+//away as the variables never actually get used.  If the debugger won't show the
+//values of the variables, make them global my moving their declaration outside
+//of this function. */
+//volatile uint32_t r0;
+//volatile uint32_t r1;
+//volatile uint32_t r2;
+//volatile uint32_t r3;
+//volatile uint32_t r12;
+//volatile uint32_t lr; /* Link register. */
+//volatile uint32_t pc; /* Program counter. */
+//volatile uint32_t psr;/* Program status register. */
+
+//    r0 = pulFaultStackAddress[ 0 ];
+//    r1 = pulFaultStackAddress[ 1 ];
+//    r2 = pulFaultStackAddress[ 2 ];
+//    r3 = pulFaultStackAddress[ 3 ];
+
+//    r12 = pulFaultStackAddress[ 4 ];
+//    lr = pulFaultStackAddress[ 5 ];
+//    pc = pulFaultStackAddress[ 6 ];
+//    psr = pulFaultStackAddress[ 7 ];
+
+//    /* When the following line is hit, the variables contain the register values. */
+//    for( ;; );
+//}
+///* The prototype shows it is a naked function - in effect this is just an
+//assembly function. */
+//static void HardFault_Handler( void ) __attribute__( ( naked ) );
+
+///* The fault handler implementation calls a function called
+//prvGetRegistersFromStack(). */
+//static void HardFault_Handler(void)
+//{
+//    __asm volatile
+//    (
+//        " tst lr, #4                                                \n"
+//        " ite eq                                                    \n"
+//        " mrseq r0, msp                                             \n"
+//        " mrsne r0, psp                                             \n"
+//        " ldr r1, [r0, #24]                                         \n"
+//        " ldr r2, handler2_address_const                            \n"
+//        " bx r2                                                     \n"
+//        " handler2_address_const: .word prvGetRegistersFromStack    \n"
+//    );
+//}
+void readRadioConfiguration(){
+  //initialize eeprom
+  
+  //read radioconfiguration from FLASH
+  //memcpy(&radioConf, (const void*)0x1f000, sizeof(radioConf));
+  //permanently set basic conf.
+  memset(&radioConf,0xff,sizeof(radioConf));
+  
+  //set default radio configuration if eeprom is 
+  if (radioConf.BaseFrequency == 0xffffffff){
+    radioConf.BaseFrequency = BASE_RADIO_FREQUENCY;
+    radioConf.BaseConfig = RADIO_CFG;
+    radioConf.ModulationType = RADIO_MODULATION;
+    radioConf.PAType = PA_TYPE;
+    radioConf.Power = RADIO_POWER;
+    radioConf.Whitening = DATA_WHITENING;
+    radioConf.Manchester = RADIO_MANCHASTER;
+    WriteToFlash((uint8_t *)&radioConf, 0x1f000, sizeof(radioConf));
+  }
+}
 
 /** 
    @fn     void uartInit(void)
@@ -165,6 +265,47 @@ void setSynnicTimer(void){
   NVIC_EnableIRQ(TIMER0_IRQn);
 }
 
+void setBestFrequency(){
+  RIE_Response = RadioSetFrequency(radioConf.BaseFrequency);
+  if(RIE_Response == RIE_Success){
+    rf_printf("FREQ%d",BestFrequency);
+    rf_printf("FREQ%d",BestFrequency);
+    rf_printf("FREQ%d",BestFrequency);
+    RIE_Response = RadioSetFrequency(BestFrequency);
+  }
+}
+/** 
+   @fn     void findFrequency(void)
+   @brief  find radio frequency with lowest RSSI
+   @see    settings.h
+   @note   enabled if RADIO_FREQUENCY == 0
+**/
+void findFrequency(void){
+  uint32_t f = MIN_RADIO_FREQUENCY ;
+  RIE_S8  lowestRSSI;
+  BestFrequency = MIN_RADIO_FREQUENCY;
+  
+  while (f < MAX_RADIO_FREQUENCY){
+    
+    RIE_Response = RadioSetFrequency(f);
+    if(RIE_Response == RIE_Success)
+      RadioRadioGetRSSI(&RSSI); //zisti uroven signalu na nastavenej frekvencii
+    else
+      printf("\nproblem during frequency searching#");
+    #if DEBUG_MESAGES
+    if(RIE_Response == RIE_Success){
+      printf("\non frequency %d is RSSI = %d dB#",f,RSSI);
+    }
+    #endif
+    if (RSSI<lowestRSSI){
+      lowestRSSI = RSSI;
+      BestFrequency = f;
+    }
+    if(RIE_Response == RIE_Success)
+      f+=FREQ_STEP;                 //zmena frekvenice o 10Khz
+  }
+  setBestFrequency();
+}
 /** 
    @fn     void radioInit(void)
    @brief  initialize Radio interface
@@ -175,25 +316,28 @@ void setSynnicTimer(void){
    @note   see settings.h for radio configuration
 **/
 void radioInit(void){
+  //read configuration from eeprom
+  readRadioConfiguration();
   // Initialise the Radio
   if (RIE_Response == RIE_Success)
-     RIE_Response = RadioInit(RADIO_CFG);  
-  // Set the Frequency to operate at 433 MHz
-  if (RIE_Response == RIE_Success)
-     RIE_Response = RadioSetFrequency(RADIO_FREQENCY);
+     RIE_Response = RadioInit(radioConf.BaseConfig);  
   // Set modulation type
   if (RIE_Response == RIE_Success)
-     RadioSetModulationType(RADIO_MODULATION);
+     RadioSetModulationType(radioConf.ModulationType);
   // Set the PA and Power Level
   if (RIE_Response == RIE_Success)
-     RIE_Response = RadioTxSetPA(PA_TYPE,RADIO_POWER);
+     RIE_Response = RadioTxSetPA(radioConf.PAType,radioConf.Power);
   // Set data whitening
   if (RIE_Response == RIE_Success)
-     RIE_Response = RadioPayldDataWhitening(DATA_WHITENING);
+     RIE_Response = RadioPayldDataWhitening(radioConf.Whitening);
   // Set data Manchaster encoding
   if (RIE_Response == RIE_Success)
-    RadioPayldManchesterEncode(RADIO_MANCHASTER);
+    RadioPayldManchesterEncode(radioConf.Manchester);
+    // Set the Frequency to operate at
+  if (RIE_Response == RIE_Success)
+    findFrequency();
 }
+
 
 /** 
    @fn     void  dmaSend(void* buff, int len)
@@ -379,16 +523,9 @@ uint8_t radioRecieve(void){
   }
   //watchdog at radio interface
   if (rxPAcketTOut > RX_PKT_TOUT_CNT){
-    
-    if (RIE_Response == RIE_Success)
-      RIE_Response = RadioHWreset();
-    
-    radioInit();
 
-    if (RIE_Response == RIE_Success)
-      RIE_Response = RadioRxPacketVariableLen();
-    RX_flag = TRUE;
-    rxPAcketTOut=0;
+      RIE_Response = RadioHWreset();
+    setBestFrequency();
   }
 
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
@@ -648,6 +785,39 @@ uint8_t zeroPacket(void){
   return 0;
 }
 /** 
+   @fn     void sendID(void)
+   @brief  send slaveID packet for active slave
+   @note   after 1000 time slots is again trying to connect new slaves
+**/
+void sendID(void){
+  char IDmessage[] = "0slot",i = NUMBER_OF_SLAVES;
+
+  while (i--){ // iterate trought all slaves while find active one
+    if (slave[slave_ID - 1].active == 1){
+      break;
+    }
+    else{
+      
+      slave[slave_ID - 1].continualInactivity ++;
+      if (slave[slave_ID - 1].continualInactivity > 1000){  //after long time try again activity of slave
+        slave[slave_ID - 1].continualInactivity = 0;
+        slave[slave_ID - 1].active = 1;
+        setBestFrequency();
+        break;
+      }
+      
+      slave_ID++;     //increment slave number 
+      if (slave_ID > NUMBER_OF_SLAVES)
+        slave_ID = 1;
+    }
+  }
+  //send slot identificator
+  rf_printf("%dslot",slave_ID);   //start packet for new multiplex
+//  IDmessage[0] = slave_ID +'0'; //for some unknown reason rf_printf is more reliable
+//  radioSend(IDmessage,6);
+}
+
+/** 
    @fn     int8_t receivePackets(void)
    @brief  receive all packets of sended time slot;
    @pre    radioInit() must be called before this function is called.
@@ -664,18 +834,22 @@ int8_t receivePackets(void){
   uint8_t received = 0;        //number of received valid packets
   uint8_t unsuccessfulCounter = NUM_OF_PACKETS_IN_MEMORY;
   
-  //send slot identificator
-  //radioSend(timeSlotString,6);  //for some unknown reason rf_printf is more reliable
-  rf_printf("%dslot",slave_ID);   //start packet for new multiplex
+  sendID();
   
   while (1){                //loop for receiving all expecting packets
     
     //if one packet received before timeout
     if (radioRecieve()){
-      if (zeroPacket())
+      if (zeroPacket()){
+        slave[slave_ID-1].active = 1;
+        slave[slave_ID-1].continualInactivity = 0;
         return 0;
-      if (validPacket())
+      }
+      if (validPacket()){
         copyBufferToMemory();
+        slave[slave_ID-1].active = 1;
+        slave[slave_ID-1].continualInactivity = 0;
+      }
       else
         return 0;           //if not recognizet packet
       received ++;
@@ -687,24 +861,25 @@ int8_t receivePackets(void){
       if (firstRxPkt == FALSE){
         if (retransmision < RETRANSMISION ){
           //send slot identificator
-          //radioSend(timeSlotString,6);    //send again slot ID
-          rf_printf("%dslot",slave_ID); //for some unknown reason rf_printf is more reliable
+          sendID();
           retransmision++;
         }
         else{                                //if nothing after RETRANSMISION times
+          //if slave is not responding 50 times turn off transmission
+          slave[slave_ID-1].continualInactivity ++;
+          if (slave[slave_ID-1].continualInactivity > 10)
+            slave[slave_ID-1].active = 0;
           return 0;
         }
       }else{
-        //if no receiving more packets
-        if ((int16_t)(pktMemory[actualRxBuffer].numOfPkt - (received + unsuccessfulCounter)) <= 0 )
+        //if no receiving more packets        
+        if ((int16_t)(pktMemory[actualRxBuffer].numOfPkt - (received + unsuccessfulCounter)) <= 0 ){   
           return -unsuccessfulCounter;       //missing some packets
+        }
         else
           unsuccessfulCounter++;
       }
     }
-//    if (firstRxPkt == TRUE)
-//      if (count >= pktMemory[actualRxBuffer].numOfPkt)
-//        return -1;                          //missing some packets
   }
 }
 /** 
@@ -716,7 +891,6 @@ void initializeNewSlot(void){
   if (slave_ID > NUMBER_OF_SLAVES)
     slave_ID = 1;
   
-  timeSlotString[0] = (slave_ID + '0');
   firstRxPkt=FALSE;
   pktMemory[actualRxBuffer].numOfPkt= 0;
 }

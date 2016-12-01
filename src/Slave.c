@@ -12,7 +12,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        13.10.2016(DD.MM.YYYY) 
+   @date        02.12.2016(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -90,6 +90,7 @@ uint8_t TX_flag = FALSE, RX_flag=FALSE, terminate_flag=FALSE, buffer_change_flag
 uint8_t my_slot = FALSE, pkt_received_flag = FALSE, close_packet_flag = FALSE;
 
 void UART_Int_Handler (void);
+uint16_t dma_printf(const char * format /*format*/, ...);
 
 int i=0,j=0;
 int debugTimer=0;
@@ -115,6 +116,8 @@ void storePkt(void){
     pingPong = 0;
   
   packetLen = rxUARTbufferCount[pingPong];
+  if (packetLen > 240)//if packet is longer as supported drop packet
+    return;
   sourcePtr = &rxUARTbuffer[pingPong][0];
   
   pktNum = pktMemory[actualRxBuffer].numOfPkt;
@@ -128,7 +131,7 @@ void storePkt(void){
     pktMemory[actualRxBuffer].numOfPkt++;
   }
   else{
-    //dma_printf("\npacket memory is full #");
+    dma_printf("\npacket memory is full #");
   }
   pkt_received_flag = FALSE;
 }
@@ -146,6 +149,8 @@ void storePkt(void){
             output port P1.0/P1.1
 **/
 void uart_init(void){
+  rxPingPong++;   // ==1
+  rxPktPtr = &rxUARTbuffer[rxPingPong][0];
   
   UrtLinCfg(0,UART_BAUD_RATE_SLAVE,COMLCR_WLS_8BITS,COMLCR_STOP_DIS);//configure uart
   DioCfg(pADI_GP1,0x9);         // UART functionality on P1.0/P1.1
@@ -153,8 +158,7 @@ void uart_init(void){
   UrtIntCfg(0,COMIEN_ERBFI);    // enable Rx interrupts at any char
   NVIC_EnableIRQ(UART_IRQn);    // setup to receive data using interrupts
   
-  rxPingPong++;   // ==1
-  rxPktPtr = &rxUARTbuffer[rxPingPong][0];
+  DmaInit();                    // initialize dma channel
 
 }
 
@@ -177,12 +181,12 @@ void led_init(void){
    @note   see settings.h for radio configuration
 **/
 void radioInit(void){
+  
   // Initialise the Radio
-  if (RIE_Response == RIE_Success)
      RIE_Response = RadioInit(RADIO_CFG);  
   // Set the Frequency to operate at 433 MHz
   if (RIE_Response == RIE_Success)
-     RIE_Response = RadioSetFrequency(RADIO_FREQENCY);
+     RIE_Response = RadioSetFrequency(BASE_RADIO_FREQUENCY);
   // Set modulation type
   if (RIE_Response == RIE_Success)
      RadioSetModulationType(RADIO_MODULATION);
@@ -195,6 +199,13 @@ void radioInit(void){
   // Set data Manchaster encoding
   if (RIE_Response == RIE_Success)
     RadioPayldManchesterEncode(RADIO_MANCHASTER);
+}
+
+void changeRadioConf(void){
+  char *ptr;
+  long int freq = strtol((char*)&Buffer[4],&ptr,10);
+  if (RIE_Response == RIE_Success)
+    RIE_Response = RadioSetFrequency(freq);
 }
 
 /** 
@@ -262,12 +273,16 @@ uint16_t dma_printf(const char * format /*format*/, ...)
    @endcode
    @note    output stream is trought radio interface
             function is waiting until whole packet is trnsmited
+   @return -1 if packet is longer than 240 bytes
+            0 if everithing done OK
 **/
-void radioSend(void* buff, uint8_t len){
+int8_t radioSend(void* buff, uint8_t len){
   #if T_PROCESSING
   uint16_t safe_timer=0;
   #endif
   if (RIE_Response == RIE_Success){   //send packet
+    if (len > 240)
+      return -1; //if packet is longer than 240 bytes
     RIE_Response = RadioTxPacketVariableLen(len, (uint8_t*)buff); 
     RX_flag = FALSE;
   }
@@ -292,6 +307,10 @@ void radioSend(void* buff, uint8_t len){
 #if TX_STREAM
   dmaSend(buff,len-1);
 #endif
+  if (RIE_Response == RIE_Success)
+    return 0;
+  else
+    return 1;
 }
 
 /** 
@@ -345,6 +364,9 @@ uint8_t rf_printf(const char * format /*format*/, ...){
 **/
 uint8_t radioRecieve(void){    //pocka na prijatie jedneho paketu
   uint16_t timeout_timer = 0;
+  //if in radiocontrolller ocuured some problem
+  if (RIE_Response != RIE_Success)
+    radioInit();
   
   if (RIE_Response == RIE_Success && RX_flag == FALSE){
     RIE_Response = RadioRxPacketVariableLen();
@@ -363,7 +385,6 @@ uint8_t radioRecieve(void){    //pocka na prijatie jedneho paketu
       //here is free time to store packet to memory
       if (pkt_received_flag == TRUE)
         storePkt();
-
     }
     RX_flag = FALSE;
   }
@@ -441,7 +462,8 @@ uint8_t transmit(void){
     pktMemoryPtr[0] = SLAVE_ID + CHAR_OFFSET; 
 
     //dma_printf(pktMemoryPtr);
-    radioSend(pktMemoryPtr,(pktMemory[actualTxBuffer].lenghtOfPkt[txPkt]+HEAD_LENGHT));//send packet
+    if (radioSend(pktMemoryPtr,(pktMemory[actualTxBuffer].lenghtOfPkt[txPkt]+HEAD_LENGHT)))//send packet
+      dma_printf("\n too long packet %d#",(pktMemory[actualTxBuffer].lenghtOfPkt[txPkt]+HEAD_LENGHT));
     
     txPkt++;
   }
@@ -493,7 +515,7 @@ uint8_t button_pushed(void){
     return 1;
 }
 /** 
-   @fn     void main(void)
+   @fn     void fill_memory(void)
    @brief  function is filling memory with PRNG data to verify stability of design
    @note   function is turn off DMA interrupt of UART
 **/
@@ -546,11 +568,11 @@ void checkIntegrityOfFirmware(void){
   #endif
   
   if (retval == 0){
-    puts("\nintegrity check ok#");
+    dma_printf("\nintegrity check ok#");
     LED_ON;
   }
   else{
-    puts("\nproblem in integrity of firmware #");  
+    dma_printf("\nproblem in integrity of firmware #");  
     LED_OFF;
     //while(1);
   }
@@ -564,9 +586,10 @@ void checkIntegrityOfFirmware(void){
 **/
 int main(void)
 {
+  uint16_t frequency_timout = 0;
   memset(pktMemory, 0, sizeof(pktMemory));
   WdtGo(T3CON_ENABLE_DIS);    //stop watch-dog
-    
+  
   //initialize all interfaces
   SetInterruptPriority();
   uart_init();
@@ -574,10 +597,11 @@ int main(void)
   led_init();
   
   radioInit();    //inicialize radio conection
-    
+  
   while (1){
     if (radioRecieve()){
       LED_ON;
+      frequency_timout = 0;
       //if this slot identifier belongs to this slave
       if ( 0 == strcmp((char*)Buffer,TIME_SLOT_ID_SLAVE)){
         close_packet_flag = TRUE;
@@ -595,9 +619,23 @@ int main(void)
       if (0 == memcmp(Buffer,"SYNC",4/*chars to compare*/))
         setTimeToSync((Buffer[4]-'0') * SYNC_INTERVAL);
       
+      //check if frequency configuration change
+      if (0 == memcmp(Buffer,"FREQ",4))
+        changeRadioConf();
+      
+      //check if message
+      if (Buffer[0] == '#')
+        dma_printf((char *)Buffer);
     }
     else {
       LED_OFF;
+      
+      //check if is something still comunicating at actual used frequency
+      frequency_timout++;
+      if (frequency_timout > FREQ_TIMEOUT){
+        RadioSetFrequency(BASE_RADIO_FREQUENCY);
+        frequency_timout = 0;
+      }
     }
     /*PRNG settings*/
     if (button_pushed()){   //(re)initialize PRNG
@@ -697,8 +735,12 @@ void DMA_UART_RX_Int_Handler   ()
 // Hard Fault Interrupt handler 
 // if pointer going out of array
 ///////////////////////////////////////////////////////////////////////////
-void HardFault_Handler(void){
-  LED_ON;
+static volatile unsigned int _Continue;
+void HardFault_Handler(void) {
+  _Continue = 0u;
+
+  while (_Continue == 0u);   
+  NVIC_SystemReset();
 }
 ///////////////////////////////////////////////////////////////////////////
 // UART Interrupt handler 
@@ -714,16 +756,29 @@ void HardFault_Handler(void){
 **/
 void UART_Int_Handler (void)
 {   
-  uint8_t ucCOMIID0, ch, pktNum; 
- 
+  uint8_t ch, ucCOMIID0; 
+
   ch  = UrtRx(0);           //call UrtRd() clears COMIIR_STA_RXBUFFULL
+  
+  // check if framing error == uart is correctly synchronized
+  if ((UrtLinSta(0) & COMLSR_FE) == COMLSR_FE){// Framing Error
+    DioCfgPin(pADI_GP1,PIN0,0); // turn off RxD function at pin for a moment
+    while(ch--);                //random waiting time
+    DioCfgPin(pADI_GP1,PIN0,1); // turn on RxD function at pin
+    return;
+  } 
   
   *rxPktPtr = ch;
   rxUARTcount++;
-  rxPktPtr++;
-  if ( (ch == '$') || (rxUARTcount >= PACKET_MEMORY_DEPTH)){
+  if(rxUARTcount < PACKET_MEMORY_DEPTH)
+    rxPktPtr++;
+  
+  if ( ch == '$' ){
+    // check if is in buffer enought place to store new word to packet
     if ((rxUARTcount >= (PACKET_MEMORY_DEPTH - (HEAD_LENGHT + MAX_LEN_OF_RX_PKT))) || close_packet_flag == TRUE){
-      rxUARTbufferCount[rxPingPong] = rxUARTcount;
+      if (rxUARTcount < PACKET_MEMORY_DEPTH){  //if packet is too long drop last word
+        rxUARTbufferCount[rxPingPong] = rxUARTcount;
+      }
       
       rxPingPong++;
       if (rxPingPong == 2)
@@ -735,6 +790,13 @@ void UART_Int_Handler (void)
       close_packet_flag = FALSE;
       pkt_received_flag = TRUE;
     }
+    rxUARTbufferCount[rxPingPong] = rxUARTcount;
+  }else{
+    if (rxUARTcount >= PACKET_MEMORY_DEPTH){
+      rxPktPtr = rxUARTbuffer[rxPingPong];
+      rxUARTcount = 0;
+    }
   }
 } 
+
 

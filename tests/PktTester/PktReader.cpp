@@ -71,7 +71,7 @@ void print_output(struct PRNGslave * slaves , int slavesNum){
  */
 void close_all ()
 {
-   printf("zatvaram port a log subor\n");
+   printf("\nzatvaram port a log subor\n");
    fclose(logFilePointer);
    RS232_CloseComport(comPort -1);
 }
@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
             //if message
             if (c == '\n')//begining of message
             {
-                while(c != '#')//packet
+                while(c != '#' && c != '$')//packet
                 {
                     fputc(c,logFilePointer);
                     putchar(c);

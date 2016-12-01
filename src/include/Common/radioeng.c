@@ -1791,8 +1791,22 @@ RIE_Responses RadioTxSetPower (RIE_PAPowerLevel Power)
 RIE_Responses RadioHWreset(void){
   RIE_Responses  Response = RIE_Success;
 
-  if(Response == RIE_Success)
-    Response = RadioSendCommandWait(CMD_HW_RESET);
+  int            i        = 0x0;
+  
+  RadioInit(DR_300_0kbps_Dev75_0kHz);
+  //  if(Response == RIE_Success)
+//    Response = RadioSendCommandNoWait(CMD_HW_RESET);
+//  i = 1000;
+//  while(i--);
+//  
+//  RADIO_CSN_ASSERT;
+//  while (!RADIO_MISO_IN && (i < 1000)) 
+//    i++;
+  //if (1000 == i)// Timed out waiting for MISO high?
+    
+//  if(Response == RIE_Success)
+//    Response = RadioSendCommandWait(CMD_HW_RESET);
+  
   RadioPowerOff();
   RADIO_CSN_ASSERT;
   while(!RADIO_MISO_IN);

@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     PRNGinit(&slave,slaveID); //initialize slave variable
         
     //inicialaizacia a otvorenie com portu
-    char mode[]={'8','N','1',0};
+    char mode[]={'8','N','2',0};
     if(RS232_OpenComport(comPort-1, baudRate, mode))//kontrola uspesnosti otvorenia COM portu
     {
         printf("neda sa otvorit com port (com port je pravdepodobne otvoreny inou aplikaciou)");
@@ -118,20 +118,20 @@ int main(int argc, char *argv[])
             //RS232_SendBuf(comPort-1,(unsigned char*)&hexaBuffer,PACKET_LEN-1);//function is not waiting for transfer completing
             RS232_cputs(comPort-1,(char *)&hexaBuffer);
             Sleep(delay);
-            
+ 
             //read UART buffer if avaliable
             n = RS232_PollComport(comPort-1, buf, 4095);
 
             if(n > 0)
             {
-              buf[n] = 0;   /* always put a "null" at the end of a string! */
+              buf[n] = 0;   /* always put a "\0" at the end of a string! */
               for(i=0; i < n; i++)
               {
-                if(buf[i] < 32 && buf[i] != '\n')  /* replace unreadable control-codes by dots */
+                if(buf[i] < 32 && buf[i] != '\n' && buf[i] != '\r')  /* replace unreadable control-codes by dots */
                 {
                   buf[i] = '.';
                 }
-                printf("%s", (char *)buf);
+                putchar(buf[i]);
               }
             }
         }
