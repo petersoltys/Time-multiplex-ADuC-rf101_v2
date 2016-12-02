@@ -215,8 +215,8 @@
 
 /**
     @brief  max numbers of tries to receiv packet at new frequency
-    @note   after timeout slave set BASE_FREQUENCY and is waiting for master frequency change
-    @see    BASE_FREQUENCY
+    @note   after timeout slave set BASE_RADIO_FREQUENCY and is waiting for master frequency change
+    @see    BASE_RADIO_FREQUENCY
  **/
 #define FREQ_TIMEOUT 100    // max numbers of tries to receive packet at new frequency
 

@@ -1795,7 +1795,7 @@ RIE_Responses RadioHWreset(void){
   
   RadioInit(DR_300_0kbps_Dev75_0kHz);
   //  if(Response == RIE_Success)
-//    Response = RadioSendCommandNoWait(CMD_HW_RESET);
+  Response = RadioSendCommandNoWait(CMD_HW_RESET);
 //  i = 1000;
 //  while(i--);
 //  

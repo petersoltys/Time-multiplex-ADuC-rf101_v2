@@ -630,10 +630,17 @@ int main(void)
     else {
       LED_OFF;
       
-      //check if is something still comunicating at actual used frequency
+      //  check if is something still comunicating at actual used frequency
+      // and reset radio modul
       frequency_timout++;
       if (frequency_timout > FREQ_TIMEOUT){
+        RIE_Response = RadioHWreset();
+        radioInit();
         RadioSetFrequency(BASE_RADIO_FREQUENCY);
+        if (RIE_Response == RIE_Success){   //start again receiving mod
+          RIE_Response = RadioRxPacketVariableLen(); 
+          RX_flag = TRUE;
+        }
         frequency_timout = 0;
       }
     }
