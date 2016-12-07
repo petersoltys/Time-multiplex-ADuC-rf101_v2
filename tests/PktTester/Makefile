@@ -14,7 +14,7 @@ CFLAGS=-std=c++11 -m32
 
 # common files RS232
 CRS232= RS232\rs232.c
-CPRNG= PRNG.c
+CPRNG= PRNG.c uwbpacketclass.cpp
 CCRC= ../../Integrity/crc.c 
 
 all: PktGenerator PktReader
