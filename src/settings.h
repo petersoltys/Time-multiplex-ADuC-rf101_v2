@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        02.12.2016(DD.MM.YYYY) 
+   @date        07.12.2016(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -218,7 +218,7 @@
     @note   after timeout slave set BASE_RADIO_FREQUENCY and is waiting for master frequency change
     @see    BASE_RADIO_FREQUENCY
  **/
-#define FREQ_TIMEOUT 100    // max numbers of tries to receive packet at new frequency
+#define FREQ_TIMEOUT 200    // max numbers of tries to receive packet at new frequency
 
  /**
     @brief  max number of receiving timeouts to restart receiving operation
@@ -336,7 +336,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       02.12.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       07.12.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

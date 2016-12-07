@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        02.12.2016(DD.MM.YYYY)
+   @date        07.12.2016(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -91,12 +91,16 @@ uint8_t actualPacket;
 
 int8_t actualRxBuffer = 0, actualTxBuffer = 1;
   
+#define UART_BUFFER_DEEP 50
+uint8_t rxBuffer[2][UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
+uint8_t *rxPtr;
+uint8_t rxPingPong = 0;
+uint8_t rxUARTcount[2]={0,0};
+uint8_t rxPAcketTOut=0;
 
 //char lastRadioTransmitBuffer[PACKET_MEMORY_DEPTH];    //buffer with last radio dommand
 uint8_t dmaTxBuffer[2][(PACKET_MEMORY_DEPTH*2)];        //buffer for DMA TX UART channel
 uint8_t dmaTxPingPong = 0;                              //ping pong pointer in dmaTxBuffer
-#define UART_BUFFER_DEEP 50
-uint8_t rxBuffer[UART_BUFFER_DEEP];    //buffer for RX UART channel - only for directives
 uint8_t dmaMessageBuffer[UART_BUFFER_DEEP]; 
 
 uint8_t slave_ID = 1;   //Slave ID
@@ -107,8 +111,8 @@ int8_t TX_flag=FALSE,RX_flag=FALSE, flush_flag = FALSE;
 int8_t sync_flag = FALSE;    //flag starting sending synchronization packet
 int8_t sync_wait = FALSE;
 int8_t firstRxPkt = FALSE;
-uint8_t rxUARTcount=0;
-uint8_t rxPAcketTOut=0;
+int8_t messageFlag = FALSE;
+
 
 //variables for DMA_UART_TX_Int_Handler
 uint8_t  dmaTxPkt = 0;          /*!< @brief global variable, pointer pointing at actually transmitted packet trought UART */
@@ -149,54 +153,7 @@ void WriteToFlash(uint8_t *pArray, unsigned long ulStartAddress, unsigned int ui
 }
 
 
-//void prvGetRegistersFromStack( uint32_t *pulFaultStackAddress )
-//{
-///* These are volatile to try and prevent the compiler/linker optimising them
-//away as the variables never actually get used.  If the debugger won't show the
-//values of the variables, make them global my moving their declaration outside
-//of this function. */
-//volatile uint32_t r0;
-//volatile uint32_t r1;
-//volatile uint32_t r2;
-//volatile uint32_t r3;
-//volatile uint32_t r12;
-//volatile uint32_t lr; /* Link register. */
-//volatile uint32_t pc; /* Program counter. */
-//volatile uint32_t psr;/* Program status register. */
 
-//    r0 = pulFaultStackAddress[ 0 ];
-//    r1 = pulFaultStackAddress[ 1 ];
-//    r2 = pulFaultStackAddress[ 2 ];
-//    r3 = pulFaultStackAddress[ 3 ];
-
-//    r12 = pulFaultStackAddress[ 4 ];
-//    lr = pulFaultStackAddress[ 5 ];
-//    pc = pulFaultStackAddress[ 6 ];
-//    psr = pulFaultStackAddress[ 7 ];
-
-//    /* When the following line is hit, the variables contain the register values. */
-//    for( ;; );
-//}
-///* The prototype shows it is a naked function - in effect this is just an
-//assembly function. */
-//static void HardFault_Handler( void ) __attribute__( ( naked ) );
-
-///* The fault handler implementation calls a function called
-//prvGetRegistersFromStack(). */
-//static void HardFault_Handler(void)
-//{
-//    __asm volatile
-//    (
-//        " tst lr, #4                                                \n"
-//        " ite eq                                                    \n"
-//        " mrseq r0, msp                                             \n"
-//        " mrsne r0, psp                                             \n"
-//        " ldr r1, [r0, #24]                                         \n"
-//        " ldr r2, handler2_address_const                            \n"
-//        " bx r2                                                     \n"
-//        " handler2_address_const: .word prvGetRegistersFromStack    \n"
-//    );
-//}
 void readRadioConfiguration(){
   //initialize eeprom
   
@@ -239,6 +196,8 @@ void uartInit(void){
   DmaInit();                    // Create DMA descriptor
   //DmaTransferSetup(UARTTX_C,  20,   Buffer);
   NVIC_EnableIRQ ( DMA_UART_TX_IRQn );    // Enable DMA UART TX interrupt
+  // set pointer for receiving buffer
+  rxPtr = rxBuffer[rxPingPong];
 }
 
 /**
@@ -1005,6 +964,16 @@ void checkIntegrityOfFirmware(void){
   }
 }
 
+void sendMessage(void){
+  uint8_t locPingPong;
+  locPingPong = rxPingPong;
+  locPingPong++;
+  if (locPingPong > 1)
+    locPingPong=0;
+  
+  radioSend(rxBuffer[locPingPong],rxUARTcount[locPingPong]);
+}
+
 /** 
    @fn     int main(void)
    @brief  main function of master program
@@ -1013,7 +982,6 @@ void checkIntegrityOfFirmware(void){
 **/
 int main(void)
 { 
-
   WdtGo(T3CON_ENABLE_DIS);
   memset(pktMemory, 0, sizeof(pktMemory));  
   
@@ -1046,6 +1014,12 @@ int main(void)
     //if synchronize message received
     if (sync_flag == TRUE)
       synchronize();
+    
+    //check if some message to broadcast
+    if (messageFlag == TRUE){
+      sendMessage();
+      messageFlag = FALSE;
+    }
     
     initializeNewSlot();
   }
@@ -1161,6 +1135,17 @@ void DMA_UART_RX_Int_Handler   ()
   UrtDma(0,0);    // prevents additional byte to restart DMA transfer
 }
 ///////////////////////////////////////////////////////////////////////////
+// Hard Fault Interrupt handler 
+// if pointer going out of array
+///////////////////////////////////////////////////////////////////////////
+static volatile unsigned int _Continue;
+void HardFault_Handler(void) {
+  _Continue = 0u;
+
+  while (_Continue == 0u);   
+  NVIC_SystemReset();
+}
+///////////////////////////////////////////////////////////////////////////
 // UART Interrupt handler 
 // used for receiving directives
 // function is taken from example UARTLoopback.c and modified
@@ -1180,18 +1165,35 @@ void UART_Int_Handler ()
 
   if ((ucCOMIID0 & COMIIR_STA_RXBUFFULL) == COMIIR_STA_RXBUFFULL)    // Receive buffer full interrupt
   {
-    ch  = UrtRx(0);             //call UrtRd() clears COMIIR_STA_RXBUFFULL
+    ch  = UrtRx(0);           //call UrtRd() clears COMIIR_STA_RXBUFFULL
   
-    rxBuffer[rxUARTcount]= ch;
-    rxUARTcount++;
+    // check if framing error == uart is correctly synchronized
+    if ((UrtLinSta(0) & COMLSR_FE) == COMLSR_FE){// Framing Error
+      DioCfgPin(pADI_GP1,PIN0,0); // turn off RxD function at pin for a moment
+      while(ch--);                //random waiting time
+      DioCfgPin(pADI_GP1,PIN0,1); // turn on RxD function at pin
+      return;
+    }
+  
+    *rxPtr = ch;
+    rxPtr++;
+    rxUARTcount[rxPingPong]++;
     
-    if (ch == '$')
-      if (memcmp(&rxBuffer[rxUARTcount-5],"SYNC$",5/*chars to compare*/) == 0){   //end of packet pointer
+    if (ch == '$'){
+      *rxPtr = '\0';
+      if (memcmp((char*)(rxPtr - 5),"SYNC$",5) == 0){   //end of packet pointer
         sync_flag = TRUE;
-        memset(rxBuffer,'\0', rxUARTcount);                   //clear buffer
-        rxUARTcount = 0;
+        rxUARTcount[rxPingPong] = 0;
+      }else{
+        messageFlag = TRUE;
       }
-    if (rxUARTcount >= UART_BUFFER_DEEP)                      //check not overflow buffer
-      rxUARTcount = 0;
+      // switch ping pong register
+      rxPingPong++;
+      if (rxPingPong > 1)
+        rxPingPong = 0;
+      rxPtr = rxBuffer[rxPingPong];
+    }
+    if (rxUARTcount[rxPingPong] >= UART_BUFFER_DEEP)                      //check not overflow buffer
+      rxUARTcount[rxPingPong] = 0;
   }
 } 

@@ -1273,9 +1273,13 @@ static RIE_Responses  RadioWaitOnState(RadioState FinalState)
 {
    RIE_Responses  Response = RIE_Success;
    RadioState     CurrState;
+   RIE_U8 timeout = 0xff;
    do
       {
       Response   = RadioReadState(&CurrState);
+        if (!(timeout--)){ //if radio modul stack
+          return RIE_RadioSPICommsFail;
+        }
       }
    while((Response == RIE_Success) && (CurrState != FinalState));
    return Response;
