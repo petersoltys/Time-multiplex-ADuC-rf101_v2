@@ -10,6 +10,20 @@ uint16_t comPort = 7;
 uint16_t baudRate = 9600;
 uint16_t delay = 0;
 
+
+void listPorts(void){
+    int test;
+    char ComName[50] = "COM";
+    TCHAR lpTargetPath[100];
+    printf("\ndostupne su len tieto existujuce porty");
+    for(int i=0; i<20; i++) // checking ports from COM0 to COM255
+    {
+        sprintf(ComName,"COM%d",i);
+        test = QueryDosDevice(ComName, (LPSTR)lpTargetPath, 100);
+        if (test)
+            printf("\n%s",ComName);
+    }
+}
 /**
  * @brief close_all funkcia volana pri zatvarani programu
  * ma nastarosti uzaviriet COM port a log subor
@@ -104,6 +118,7 @@ int main(int argc, char *argv[])
     if(RS232_OpenComport(comPort-1, baudRate, mode))//kontrola uspesnosti otvorenia COM portu
     {
         printf("neda sa otvorit com port (com port je pravdepodobne otvoreny inou aplikaciou)");
+        listPorts();
         return(0);
     }else{
         printf("com port uspesne otvoreny\n");

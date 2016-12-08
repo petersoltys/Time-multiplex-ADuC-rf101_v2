@@ -113,6 +113,19 @@ void *printing (void * slaves){
     /* the function must return something - NULL will do */
     return NULL;
 }
+void listPorts(void){
+    int test;
+    char ComName[50] = "COM";
+    TCHAR lpTargetPath[100];
+    printf("\ndostupne su len tieto existujuce porty");
+    for(int i=0; i<20; i++) // checking ports from COM0 to COM255
+    {
+        sprintf(ComName,"COM%d",i);
+        test = QueryDosDevice(ComName, (LPSTR)lpTargetPath, 100);
+        if (test)
+            printf("\n%s",ComName);
+    }
+}
 
 /**
  * @brief close_all funkcia volana pri zatvarani programu
@@ -235,6 +248,7 @@ int main(int argc, char *argv[])
     {
       printf("Can not open comport\n");
       printf("neda sa otvorit com port (com port je pravdepodobne otvoreny inou aplikaciou)\n");
+      listPorts();
       fclose(logFilePointer);
       RS232_CloseComport(comPort -1);
       return 0;
