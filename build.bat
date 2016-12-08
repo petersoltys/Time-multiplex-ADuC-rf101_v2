@@ -20,6 +20,7 @@ SET slave=4
 IF "%~1"==""  (
 
     echo staviam vsetko
+    Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>1</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>0</RunDebugAfterBuild>"
     
     UV4 -b Radio.uvproj -t Master -j0 -o output/Build_Master.txt
     copy "obj\Radio.hex" "output\Master.hex"
@@ -29,22 +30,27 @@ IF "%~1"==""  (
         UV4 -b Radio.uvproj -t Slave -j0 -o output/Build_Slave.txt
         copy "obj\Radio.hex" "output\Slave%%i.hex"
     )
-
+    Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>0</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>1</RunDebugAfterBuild>"
 )
 
 IF "%~1" == "master" (
     echo staviam Master projekt
     UV4 -b Radio.uvproj -t Master -j0 -o output/Build_Master.txt
     copy "obj\Radio.hex" "output\Master.hex"
+    Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>0</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>1</RunDebugAfterBuild>"
+
 )
 IF "%~1" == "slave" (
     echo staviam Slave projekty
-
+    
+    Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>1</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>0</RunDebugAfterBuild>"
     for /l %%i in (1, 1, %slave%) do (
         Revision_control\fnr.exe --cl --dir %cd%\src --fileMask "*.h" --includeSubDirectories --caseSensitive --useRegEx --useEscapeChars --find "SLAVE_ID [0-9]" --replace "SLAVE_ID %%i"
         UV4 -b Radio.uvproj -t Slave -j0 -o output/Build_Slave.txt
         copy "obj\Radio.hex" "output\Slave%%i.hex"
     )
+    Revision_control\fnr.exe --cl --dir %cd% --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>0</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>1</RunDebugAfterBuild>"
+
 )
 IF "%~1" == "download" (
     echo spustam prednastaveny bootloader

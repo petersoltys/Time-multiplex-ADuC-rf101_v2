@@ -9,7 +9,7 @@ note        already are all matlab scripts old and uncompatibile with actual ver
 
 actual programs
             PktTester   -Makefile is file with compilation rules of PktGenerator.cpp and PktReader
-                                -esamples : make PktGenerator
+                                -examples : make PktGenerator
                                             make PktReader
                                             make all
             
@@ -20,7 +20,7 @@ actual programs
                                 
                         -PktGenerator.exe program to generate PRNG packets
                                 -using : PktGenerator 3  2 
-                                            [comport^][^slaveID of packets]
+                                              [comport^][^slaveID of packets]
                                 -for more option : PktGenerator -h
                           
                         -multiple_run.bat -batch file is simultaneously starting PktGenerator at different com ports 
@@ -30,6 +30,7 @@ actual programs
                         sources for makefile
                             -PktGenerator.cpp
                             -PktReader.cpp
+                            -uwbpacketclass.cpp
                             -RS232/rs232.c
                             -RS232/rs232.h
             
