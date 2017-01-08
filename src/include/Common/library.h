@@ -50,6 +50,7 @@ to ensure that the resulting application performs as required and is safe.
 #include "WutLib.h"
 #include "crc.h"
 #include "PRNG.h"
+#include "Compression.h"
 
 
 

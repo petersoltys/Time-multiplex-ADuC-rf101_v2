@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.12.2016(DD.MM.YYYY)
+   @date        08.01.2017(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -117,8 +117,8 @@ int8_t messageFlag = FALSE;
 //variables for DMA_UART_TX_Int_Handler
 uint8_t  dmaTxPkt = 0;          /*!< @brief global variable, pointer pointing at actually transmitted packet trought UART */
 int8_t   dmaTx_flag = FALSE;    /*!< @brief flag about transmitting operation */
-int8_t   dmaTxReady = FALSE;    /*!< @brief flag mean that all variables are set for transmit */
-uint8_t  dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
+int8_t   dmaTxReady[2] = {FALSE, FALSE};    /*!< @brief flag mean that all variables are set for transmit */
+uint16_t dmaTxLen;              /*!< @brief global variable, with lenght of packet to send */
 uint8_t* dmaTxPtr;              /*!< @brief global pointer UART transmitting */
 uint8_t  dmaTxPktTotal;
 uint16_t dmaTxTimeoutCounter=0;
@@ -428,18 +428,36 @@ uint8_t rf_printf(const char * format /*format*/, ...){
 
 **/
 void setTransfer(void){
-  if(flush_flag == TRUE && dmaTxReady == FALSE && dmaTx_flag == FALSE){
-    if(dmaTxPkt < dmaTxPktTotal){      //packet iterate 0..as needed
+  uint8_t *pointer, localPingPong, *sourcePtr ;
+  int16_t len;
+  
+  // set local ping pong
+  localPingPong = dmaTxPingPong;  
+  if (localPingPong >= 1)
+    localPingPong = 0;
+  else
+    localPingPong = 1;
+    
+  if(flush_flag == TRUE && dmaTxReady[localPingPong] == FALSE){
+    
+    //packet iterate 0..as needed
+    if(dmaTxPkt < dmaTxPktTotal){
       
-      dmaTxPtr = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
+      pointer = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
       
-      if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag 'w'
+      //try if packet is received waiting flag 'w'
+      if(pointer[1]!='w'){
         
-        dmaTxLen = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
-
-          binToHexa(dmaTxPtr,&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen);
-          
-        dmaTxReady = TRUE;
+        len = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
+        
+#if BINARY
+        dmaTxLen = binaryToHexaDecompression( &pointer[HEAD_LENGHT], 
+                                              &dmaTxBuffer[localPingPong][0], 
+                                              len - HEAD_LENGHT);
+#else
+        binToHexa(pointer,&dmaTxBuffer[localPingPong][0],len);
+#endif
+        dmaTxReady[localPingPong] = TRUE;
         if (dmaTx_flag == FALSE){
           dmaTx_flag = TRUE;
           DMA_UART_TX_Int_Handler();
@@ -685,12 +703,13 @@ void flushBufferedPackets(void){
   while(flush_flag==TRUE){
 #if HEXA_TRANSFER
     setTransfer();
-#endif
+#else
     dmaTxTimeoutCounter++;
     // @bug for some unknown reason interrupt does not occur
     //probably sometime interrupt does not occur
-    if (dmaTxTimeoutCounter > DMA_TIMEOUT)
+    if (dmaTxTimeoutCounter >= DMA_TIMEOUT)
       DMA_UART_TX_Int_Handler();
+#endif
   }
   dmaTxTimeoutCounter=0;
   //switch buffer 
@@ -704,8 +723,12 @@ void flushBufferedPackets(void){
   dmaTxPkt =0;
   dmaTxPktTotal = pktMemory[actualTxBuffer].numOfPkt;
   flush_flag = TRUE;
+  #if BINARY
+    setTransfer();
+  #else
   //call DMA_UART_TX_Int_Handler all managment is inside this function
   DMA_UART_TX_Int_Handler ();
+  #endif
 }
 
 /** 
@@ -749,7 +772,7 @@ uint8_t zeroPacket(void){
    @note   after 1000 time slots is again trying to connect new slaves
 **/
 void sendID(void){
-  char IDmessage[] = "0slot",i = NUMBER_OF_SLAVES;
+  char i = NUMBER_OF_SLAVES;
 
   while (i--){ // iterate trought all slaves while find active one
     if (slave[slave_ID - 1].active == 1){
@@ -1073,26 +1096,28 @@ void GP_Tmr0_Int_Handler(void){
 **/
 void DMA_UART_TX_Int_Handler (void)
 {
+  uint8_t localPingPong;
   UrtDma(0,0);                       // prevents further UART DMA requests
   DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
 #if HEXA_TRANSFER  
-  if (dmaTxReady == TRUE){
+  dmaTxReady[dmaTxPingPong] = FALSE;//set flag about transfer
+  
+  if (dmaTxPingPong > 0)//change ping pong buffer
+    localPingPong = 0;
+  else
+    localPingPong = 1;
     
-#if SEND_HEAD      
-        dmaSend(&dmaTxBuffer[dmaTxPingPong][0],dmaTxLen*2);        //send data with head
-#else      
-        dmaSend(&dmaTxBuffer[dmaTxPingPong][HEAD_LENGHT*2], (dmaTxLen*2)-(HEAD_LENGHT*2) );   //send only data without head
-#endif        
-        if (dmaTxPingPong > 0)//change ping pong buffer
-          dmaTxPingPong = 0;
-        else
-          dmaTxPingPong = 1;
+  if (dmaTxReady[localPingPong] == TRUE){
+    
+    dmaTxPingPong = localPingPong;
+    
+    dmaSend(&dmaTxBuffer[dmaTxPingPong][0], dmaTxLen);   //send only data without head
+        
+    //dmaTxReady[dmaTxPingPong] = FALSE;//set flag about transfer
+  }
   else{
     dmaTx_flag = FALSE;
   }
-}
-        
-        dmaTxReady = FALSE;//set flag about transfer
 #else    
         
   if(flush_flag == TRUE){

@@ -12,7 +12,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.12.2016(DD.MM.YYYY) 
+   @date        08.01.2017(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -72,6 +72,11 @@ struct pkt_memory {
   uint8_t numOfPkt;
 }pktMemory[2];
 
+#if BINARY
+  uint8_t hexa_ping_pong = 0;
+  uint8_t rxUARTwordNumber = 0;
+#endif
+
 uint8_t PRNG_data = FALSE;   //flag to set random data generation
 struct PRNGslave slavePRNG;
 
@@ -79,8 +84,8 @@ char actualRxBuffer=0;
 char actualTxBuffer=1;
 
 uint8_t rxPingPong = 0;                            //ping pong pointer in rxUARTbuffer
-uint8_t rxUARTbuffer[2][PACKET_MEMORY_DEPTH];    //buffer for TX UART channel
-uint16_t rxUARTbufferCount[2] = {0,0};
+uint8_t rxUARTbuffer[2][UART_BUFFER_DEEPTH];    //buffer for TX UART channel
+uint16_t rxUARTbufferLen[2] = {0,0};
 uint16_t rxUARTcount = 0;
 
 
@@ -108,26 +113,38 @@ int debugTimer=0;
 **/
 void storePkt(void){
   uint8_t pktNum, *destPtr, *sourcePtr, pingPong;
-  uint16_t packetLen;
+  #if BINARY
+  uint8_t *pointer;
+  uint16_t processed = 0, binaryLen = 0;
+  #endif
+  uint16_t bufferLen, wordLen = 0;
   
   pingPong = rxPingPong;
   pingPong++;
   if(pingPong >= 2)
     pingPong = 0;
   
-  packetLen = rxUARTbufferCount[pingPong];
-  if (packetLen > 240)//if packet is longer as supported drop packet
-    return;
-  sourcePtr = &rxUARTbuffer[pingPong][0];
+  bufferLen = rxUARTbufferLen[pingPong];
+#if BINARY
+  if (bufferLen >= UART_BUFFER_DEEPTH - (HEAD_LENGHT*2))//if packet is longer as supported drop packet
+#else
+  if (bufferLen >= UART_BUFFER_DEEPTH - HEAD_LENGHT)//if packet is longer as supported drop packet
+#endif
+  return;
   
+  sourcePtr = &rxUARTbuffer[pingPong][0];
   pktNum = pktMemory[actualRxBuffer].numOfPkt;
   
   if (pktNum < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
-    destPtr = &pktMemory[actualRxBuffer].packet[pktNum][HEAD_LENGHT];   //pinting beyound packet head
+    destPtr = &pktMemory[actualRxBuffer].packet[pktNum][HEAD_LENGHT];   //pointing beyound packet head
     
-    memcpy(destPtr, sourcePtr, packetLen); //copy packet to memory
-   
-    pktMemory[actualRxBuffer].lenghtOfPkt[pktNum] = packetLen;
+#if BINARY
+    bufferLen = hexaToBinaryCompression( sourcePtr, destPtr, bufferLen);
+#else
+    memcpy(destPtr, sourcePtr, bufferLen); //copy packet to memory
+#endif
+    
+    pktMemory[actualRxBuffer].lenghtOfPkt[pktNum] = bufferLen;
     pktMemory[actualRxBuffer].numOfPkt++;
   }
   else{
@@ -531,7 +548,6 @@ void fill_memory(void){
       PRNGnew(&slavePRNG);
       binToHexa((uint8_t*)&slavePRNG.packet, &pktptr[len], sizeof(struct PRNGrandomPacket));
       pktptr[len + (sizeof(struct PRNGrandomPacket)*2)] = '$';
-      //memcpy(&pktptr[len+HEAD_LENGHT],&random_packet,PRNG_PKT_LEN);
       len += (sizeof(struct PRNGrandomPacket)*2)+1;
     }
     pktMemory[actualRxBuffer].lenghtOfPkt[pktMemory[actualRxBuffer].numOfPkt] = len-HEAD_LENGHT;
@@ -763,7 +779,7 @@ void HardFault_Handler(void) {
 **/
 void UART_Int_Handler (void)
 {   
-  uint8_t ch, ucCOMIID0; 
+  uint8_t ch; 
 
   ch  = UrtRx(0);           //call UrtRd() clears COMIIR_STA_RXBUFFULL
   
@@ -773,20 +789,36 @@ void UART_Int_Handler (void)
     while(ch--);                //random waiting time
     DioCfgPin(pADI_GP1,PIN0,1); // turn on RxD function at pin
     return;
-  } 
+  }
   
   *rxPktPtr = ch;
   rxUARTcount++;
-  if(rxUARTcount < PACKET_MEMORY_DEPTH)
-    rxPktPtr++;
   
-  if ( ch == '$' ){
+  //check place in uart buffer
+#if BINARY
+  if (rxUARTcount <= (UART_BUFFER_DEEPTH - (HEAD_LENGHT*2) -1 ))
+#else
+  if (rxUARTcount <= (UART_BUFFER_DEEPTH - HEAD_LENGHT))
+#endif
+    rxPktPtr++;
+  else{
+    rxPktPtr = rxUARTbuffer[rxPingPong];
+    rxUARTcount = 0;
+  }
+  
+  if ( ch == STRING_TERMINATOR ){
     // check if is in buffer enought place to store new word to packet
-    if ((rxUARTcount >= (PACKET_MEMORY_DEPTH - (HEAD_LENGHT + MAX_LEN_OF_RX_PKT))) || close_packet_flag == TRUE){
-      if (rxUARTcount < PACKET_MEMORY_DEPTH){  //if packet is too long drop last word
-        rxUARTbufferCount[rxPingPong] = rxUARTcount;
-      }
-      
+      #if BINARY
+        rxUARTcount++;
+        if ((rxUARTcount >= (UART_BUFFER_DEEPTH - ((HEAD_LENGHT*2) + MAX_LEN_OF_RX_PKT)))
+      #else
+        if ((rxUARTcount >= (UART_BUFFER_DEEPTH - (HEAD_LENGHT + MAX_LEN_OF_RX_PKT)))
+      #endif
+      || close_packet_flag == TRUE){  
+      //if packet is too long drop last word
+
+      rxUARTbufferLen[rxPingPong] = rxUARTcount;
+
       rxPingPong++;
       if (rxPingPong == 2)
         rxPingPong=0;
@@ -797,12 +829,7 @@ void UART_Int_Handler (void)
       close_packet_flag = FALSE;
       pkt_received_flag = TRUE;
     }
-    rxUARTbufferCount[rxPingPong] = rxUARTcount;
-  }else{
-    if (rxUARTcount >= PACKET_MEMORY_DEPTH){
-      rxPktPtr = rxUARTbuffer[rxPingPong];
-      rxUARTcount = 0;
-    }
+    rxUARTbufferLen[rxPingPong] = rxUARTcount;
   }
 } 
 

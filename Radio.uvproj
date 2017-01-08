@@ -371,7 +371,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity;.\tests\PktTester</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity;.\tests\PktTester;.\src\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -590,6 +590,11 @@
               <FileName>PRNG.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\tests\PktTester\PRNG.c</FilePath>
+            </File>
+            <File>
+              <FileName>Compression.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\Compression.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -960,7 +965,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity;.\tests\PktTester</IncludePath>
+              <IncludePath>$K\ARM\CMSIS\Include;.\src\include\Common;.\src\include\DasLib;.\Integrity;.\tests\PktTester;.\src\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1243,6 +1248,11 @@
               <FileName>PRNG.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\tests\PktTester\PRNG.c</FilePath>
+            </File>
+            <File>
+              <FileName>Compression.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\include\Compression.c</FilePath>
             </File>
           </Files>
         </Group>

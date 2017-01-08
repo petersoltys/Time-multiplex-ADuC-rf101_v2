@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.12.2016(DD.MM.YYYY) 
+   @date        08.01.2017(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -41,7 +41,7 @@
 */
 
 /** @brief size of RAM memory for packet in radio interface **/
-#define PACKETRAM_LEN          240    
+#define PACKETRAM_LEN          240
 
 
 /*******************************************************************************
@@ -160,7 +160,13 @@
     @see    NUM_OF_PACKETS_IN_MEMORY
     @param  memory deepth :{0 , 240}
  **/
-#define PACKET_MEMORY_DEPTH 240 
+#define PACKET_MEMORY_DEPTH PACKETRAM_LEN
+
+#if BINARY
+#define UART_BUFFER_DEEPTH PACKET_MEMORY_DEPTH*2
+#else 
+#define UART_BUFFER_DEEPTH PACKET_MEMORY_DEPTH
+#endif
 
  /**
     @brief  maximal number of packets (stored in memory) to send/receive 
@@ -211,7 +217,7 @@
     @see    flushBufferedPackets()
     @param  time :{7000 ~ 0.8ms}
  **/
-#define DMA_TIMEOUT 100000     //max time(number of increments) to response of slave 
+#define DMA_TIMEOUT 0xffff     //max time(number of increments) to response of slave 
 
 /**
     @brief  max numbers of tries to receiv packet at new frequency
@@ -309,14 +315,14 @@
 #define RX_STREAM 0       /*!< @brief stream of redeived data to UART**/
 #define TX_STREAM 0       /*!< @brief stream of transmited data to UART**/
 #define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/
-#define HEXA_TRANSFER 0   /*!< @brief sending packets via UART in hexadecimal ASCII chars */
+#define HEXA_TRANSFER 1   /*!< @brief sending packets via UART in hexadecimal ASCII chars */
+#define BINARY 1
 
 /*! @brief start checking PRNG packets local (on master} 
     @note  packets are not streamed on UART only messages
 */
 #define PRNG_CONTINUAL_GENERATING 0 /*!< @brief system of generating PRNG packets 1=only during pushed button 0=automaticaly after first push */
 #define CHECK_PRNG_LOCAL 0 /*!< @brief build checking of packet localy at master device */
-#define PRNG_PKT_LEN 12   /*!< @brief lenght in bytes of PRNG packet */
 #define RAND_SEED 500     /*!< @brief initial number for PRNG */
           
 
@@ -336,7 +342,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       08.12.2016	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       08.01.2017	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode
