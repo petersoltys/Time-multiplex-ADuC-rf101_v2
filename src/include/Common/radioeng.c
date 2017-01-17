@@ -1795,7 +1795,7 @@ RIE_Responses RadioTxSetPower (RIE_PAPowerLevel Power)
 RIE_Responses RadioHWreset(void){
   RIE_Responses  Response = RIE_Success;
 
-  int            i        = 0x0;
+//  int            i        = 0x0;
   
   RadioInit(DR_300_0kbps_Dev75_0kHz);
   //  if(Response == RIE_Success)
@@ -1819,4 +1819,5 @@ RIE_Responses RadioHWreset(void){
   if(Response == RIE_Success)
     RadioWaitOnCmdLdr();
   //now is nesessary to initialize radio controller
+  return Response;
 }

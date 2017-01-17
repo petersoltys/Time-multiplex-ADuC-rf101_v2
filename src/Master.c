@@ -11,7 +11,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.01.2017(DD.MM.YYYY)
+   @date        16.01.2017(DD.MM.YYYY)
 
    @par Revision History:
    - V1.1, July 2015  : initial version. 
@@ -41,6 +41,7 @@
 #define LED_OFF DioSet(pADI_GP4,BIT2)   //led off
 #define LED_ON  DioClr(pADI_GP4,BIT2)   //led on
 
+#define YIELD setTransfer();
 
 RIE_Responses  RIE_Response = RIE_Success;
 uint8_t        Buffer[PACKETRAM_LEN];
@@ -228,8 +229,9 @@ void setBestFrequency(){
   RIE_Response = RadioSetFrequency(radioConf.BaseFrequency);
   if(RIE_Response == RIE_Success){
     rf_printf("FREQ%d",BestFrequency);
-    rf_printf("FREQ%d",BestFrequency);
-    rf_printf("FREQ%d",BestFrequency);
+    if (RIE_Response == RIE_Success){   //wait untill packet sended
+      while(!RadioTxPacketComplete());
+    }
     RIE_Response = RadioSetFrequency(BestFrequency);
   }
 }
@@ -417,7 +419,7 @@ uint8_t rf_printf(const char * format /*format*/, ...){
   va_end( args );
   return len;
 }
-#if HEXA_TRANSFER
+#if SLOW_FLUSH == 0
 
 /** 
    @fn     void setTransfer(void)
@@ -443,15 +445,15 @@ void setTransfer(void){
     //packet iterate 0..as needed
     if(dmaTxPkt < dmaTxPktTotal){
       
-      pointer = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
+      pointer = &pktMemory[actualTxBuffer].packet[dmaTxPkt][HEAD_LENGHT];   //pointer at actuall packet
       
       //try if packet is received waiting flag 'w'
       if(pointer[1]!='w'){
         
         len = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
         
-#if BINARY
-        dmaTxLen = binaryToHexaDecompression( &pointer[HEAD_LENGHT], 
+#if COMPRESSION
+        dmaTxLen = binaryToHexaDecompression( pointer, 
                                               &dmaTxBuffer[localPingPong][0], 
                                               len - HEAD_LENGHT);
 #else
@@ -508,8 +510,8 @@ uint8_t radioRecieve(void){
   if (RIE_Response == RIE_Success && RX_flag == TRUE){
     while (!RadioRxPacketAvailable()){
       timeout_timer++;
-#if HEXA_TRANSFER
-      setTransfer();
+#if COMPRESSION && SLOW_FLUSH == 0
+      YIELD;
 #endif
       //turn on led if nothing is received after timeout
       if (timeout_timer > T_TIMEOUT){
@@ -691,6 +693,50 @@ void ifMissPktGet(void)
     #endif
   }
 }
+
+void Send(char* buff, int len){
+  while(len--){
+    putchar(*buff);
+    buff++;
+  }
+}
+void slowFlush(){
+    uint8_t *pointer;
+    uint16_t len;
+//  if(flush_flag == TRUE && dmaTxReady[localPingPong] == FALSE){
+    
+    //packet iterate 0..as needed
+    while(dmaTxPkt < dmaTxPktTotal){
+      
+      pointer = &pktMemory[actualTxBuffer].packet[dmaTxPkt][0];   //pointer at actuall packet
+      
+      //try if packet is received waiting flag 'w'
+      if(pointer[1]!='w'){
+        
+        len = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
+#if COMPRESSION
+        dmaTxLen = binaryToHexaDecompression( &pointer[HEAD_LENGHT], 
+                                              &dmaTxBuffer[0][0], 
+                                              len - HEAD_LENGHT);
+        while(dmaTx_flag);    //wait for dma transfer done
+        dmaTx_flag = TRUE;
+        dmaSend((char *)dmaTxBuffer,dmaTxLen);
+#else
+        dmaTxLen = len;
+        while(dmaTx_flag);    // wait for dma transfer done
+        dmaTx_flag = TRUE;
+        dmaSend((char *)&pointer[HEAD_LENGHT],dmaTxLen-HEAD_LENGHT);
+#endif
+        
+//        dmaTx_flag = TRUE;
+//        while(dmaTx_flag == TRUE);
+      }
+      else{
+        dma_printf("\nmissing packet %d #",dmaTxPkt+1);        //message about missing packet
+      }
+      dmaTxPkt++;
+    }
+}
 /** 
    @fn     void flushBufferedPackets(void)
    @brief  rotate memory and start sending received packets on UART with DMA
@@ -699,10 +745,12 @@ void ifMissPktGet(void)
    @note   all managment about sending packets is in @see DMA_UART_TX_Int_Handler()
 **/
 void flushBufferedPackets(void){
+#if SLOW_FLUSH == 0  
   //wait untill all packets are flushed
   while(flush_flag==TRUE){
-#if HEXA_TRANSFER
-    setTransfer();
+
+#if COMPRESSION
+    YIELD;
 #else
     dmaTxTimeoutCounter++;
     // @bug for some unknown reason interrupt does not occur
@@ -711,6 +759,7 @@ void flushBufferedPackets(void){
       DMA_UART_TX_Int_Handler();
 #endif
   }
+#endif
   dmaTxTimeoutCounter=0;
   //switch buffer 
   actualRxBuffer++;
@@ -722,13 +771,18 @@ void flushBufferedPackets(void){
   
   dmaTxPkt =0;
   dmaTxPktTotal = pktMemory[actualTxBuffer].numOfPkt;
+#if SLOW_FLUSH
+  slowFlush();
+#else
   flush_flag = TRUE;
-  #if BINARY
+  
+  #if COMPRESSION
     setTransfer();
   #else
   //call DMA_UART_TX_Int_Handler all managment is inside this function
   DMA_UART_TX_Int_Handler ();
   #endif
+#endif
 }
 
 /** 
@@ -929,6 +983,29 @@ void checkBufferedRandomPackets(void){
     if (pktMemory[actualRxBuffer].packet[packet][1] == 'w')
       printf("\nmissing radio packet %d#",packet);
     else{
+      #if COMPRESSION
+      while (rnd_pkt_in_memory <= (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/((sizeof(struct PRNGrandomPacket))+1)); word > 0 ; word --){
+        #if ADAPTIVE_COMPRESSION
+        while (*rnd_pkt_in_memory == 0){ // not compressed message from slave
+          rnd_pkt_in_memory++;
+          while (*rnd_pkt_in_memory != PACKET_TERMINATOR){
+            putchar(*rnd_pkt_in_memory);
+            rnd_pkt_in_memory++;
+          }
+          putchar(*rnd_pkt_in_memory);
+          rnd_pkt_in_memory++;
+        }
+        #endif
+        rnd_pkt_in_memory++;
+        //check one random word
+        if (PRNGcheck(slaves,(struct PRNGrandomPacket*)rnd_pkt_in_memory,(uint8_t*)message,NUMBER_OF_SLAVES))
+            puts(message);
+        else{
+            //puts("packet is valid");
+        }
+        rnd_pkt_in_memory += (sizeof(struct PRNGrandomPacket)*2)+1;
+      }
+      #else
       for (word = (pktMemory[actualRxBuffer].lenghtOfPkt[packet]/((sizeof(struct PRNGrandomPacket)*2)+1)); word > 0 ; word --){
         hexaToBin((uint8_t*)rnd_pkt_in_memory,(uint8_t*)rnd_pkt_in_memory,sizeof(struct PRNGrandomPacket));
         //check one random word
@@ -939,6 +1016,7 @@ void checkBufferedRandomPackets(void){
         }
         rnd_pkt_in_memory += (sizeof(struct PRNGrandomPacket)*2)+1;
       }
+      #endif
     }
   }
   actualRxBuffer++;
@@ -1099,7 +1177,10 @@ void DMA_UART_TX_Int_Handler (void)
   uint8_t localPingPong;
   UrtDma(0,0);                       // prevents further UART DMA requests
   DmaChanSetup ( UARTTX_C , DISABLE , DISABLE );    // Disable DMA channel
-#if HEXA_TRANSFER  
+#if SLOW_FLUSH
+  dmaTx_flag = FALSE;
+#else
+  #if COMPRESSION  
   dmaTxReady[dmaTxPingPong] = FALSE;//set flag about transfer
   
   if (dmaTxPingPong > 0)//change ping pong buffer
@@ -1118,7 +1199,7 @@ void DMA_UART_TX_Int_Handler (void)
   else{
     dmaTx_flag = FALSE;
   }
-#else    
+  #else    
         
   if(flush_flag == TRUE){
     if(dmaTxPkt < dmaTxPktTotal){      //packet iterate 0..as needed
@@ -1128,11 +1209,11 @@ void DMA_UART_TX_Int_Handler (void)
       if(dmaTxPtr[1]!='w'){                         //try if packet is received waiting flag 'w'
         
         dmaTxLen = pktMemory[actualTxBuffer].lenghtOfPkt[dmaTxPkt];
-#if SEND_HEAD
+    #if SEND_HEAD
         dmaSend(dmaTxPtr,dmaTxLen);          //send data with head
-#else
+    #else
         dmaSend(dmaTxPtr + HEAD_LENGHT, dmaTxLen - HEAD_LENGHT);   //send only data without head
-#endif
+    #endif
       }
       else{
         dma_printf("\nmissing packet %d#",dmaTxPkt+1);        //message about missing packet
@@ -1144,6 +1225,7 @@ void DMA_UART_TX_Int_Handler (void)
       flush_flag = FALSE;
     }
   }
+  #endif
 #endif
 }
 

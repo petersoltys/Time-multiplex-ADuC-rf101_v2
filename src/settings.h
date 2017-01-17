@@ -7,7 +7,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.01.2017(DD.MM.YYYY) 
+   @date        16.01.2017(DD.MM.YYYY) 
 
 
   @note : in radioeng.c was changed intial value from \n
@@ -146,7 +146,12 @@
  **/
 #define CRC_FAST 0
 
-
+#define COMPRESSION 1          /*!< @brief sending packets via UART in hexadecimal ASCII chars and binary compressed trought air*/
+#define ADAPTIVE_COMPRESSION 1 /*!< @brief if received data do not contain ascii chars do not drop packet but send without compression*/
+/*! @brief start sending data trought UART in main loop
+    @note  fast fulsh is not reliable if COMPRESSION is turned on
+*/
+#define SLOW_FLUSH 1
  /**
     @brief  char witch terminate all received packets     
     @param  char :{'$'}
@@ -314,9 +319,7 @@
 #define DEBUG_MESAGES 0   /*!< @brief stream of mesages to UART */
 #define RX_STREAM 0       /*!< @brief stream of redeived data to UART**/
 #define TX_STREAM 0       /*!< @brief stream of transmited data to UART**/
-#define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/
-#define HEXA_TRANSFER 1   /*!< @brief sending packets via UART in hexadecimal ASCII chars */
-#define BINARY 1
+#define SEND_HEAD 0       /*!< @brief send also heads of packets on UART**/   
 
 /*! @brief start checking PRNG packets local (on master} 
     @note  packets are not streamed on UART only messages
@@ -342,7 +345,7 @@
 	- Author:   Peter Soltys
 	- Version:  
 	- Hardware: ADucRF101MKxZ
-	- Date:       08.01.2017	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
+	- Date:       16.01.2017	    19.04.2016	    19.04.2016	    19.04.2016	   19.04.2016(DD.MM.YYYY)
 	- Project:  Time-multiplex-ADuc-RF101
   - DEV:      Keil 5.1 Evaluation
 	- Note:     v2.1B fixed synchronization and added binary mode

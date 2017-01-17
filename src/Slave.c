@@ -12,7 +12,7 @@
    @author      Bc. Peter Soltys
    @supervisor  doc. Ing. Milos Drutarovsky Phd.
    @version     
-   @date        08.01.2017(DD.MM.YYYY) 
+   @date        16.01.2017(DD.MM.YYYY) 
 
    @par Revision History:
    - V1.0, July 2015  : initial version. 
@@ -72,7 +72,7 @@ struct pkt_memory {
   uint8_t numOfPkt;
 }pktMemory[2];
 
-#if BINARY
+#if COMPRESSION
   uint8_t hexa_ping_pong = 0;
   uint8_t rxUARTwordNumber = 0;
 #endif
@@ -111,9 +111,17 @@ int debugTimer=0;
    @endcode
 
 **/
+//void  dmaSend(void* buff, int len);
+//void send(char* buff, int len){
+//  while(len--){
+//    putchar(*buff);
+//    buff++;
+//  }
+//}
 void storePkt(void){
   uint8_t pktNum, *destPtr, *sourcePtr, pingPong;
-  #if BINARY
+  uint8_t buf[PACKET_MEMORY_DEPTH];///////////////////////<<<<<<<<<<<<<<<<
+  #if COMPRESSION
   uint8_t *pointer;
   uint16_t processed = 0, binaryLen = 0;
   #endif
@@ -125,12 +133,14 @@ void storePkt(void){
     pingPong = 0;
   
   bufferLen = rxUARTbufferLen[pingPong];
-#if BINARY
-  if (bufferLen >= UART_BUFFER_DEEPTH - (HEAD_LENGHT*2))//if packet is longer as supported drop packet
+#if COMPRESSION
+  if (bufferLen >= UART_BUFFER_DEEPTH - (HEAD_LENGHT*2)){//if packet is longer as supported drop packet
 #else
-  if (bufferLen >= UART_BUFFER_DEEPTH - HEAD_LENGHT)//if packet is longer as supported drop packet
+  if (bufferLen >= UART_BUFFER_DEEPTH - HEAD_LENGHT){//if packet is longer as supported drop packet
 #endif
+  dma_printf("\npkt too Long#");
   return;
+  }
   
   sourcePtr = &rxUARTbuffer[pingPong][0];
   pktNum = pktMemory[actualRxBuffer].numOfPkt;
@@ -138,8 +148,25 @@ void storePkt(void){
   if (pktNum < NUM_OF_PACKETS_IN_MEMORY){     //copy to memory
     destPtr = &pktMemory[actualRxBuffer].packet[pktNum][HEAD_LENGHT];   //pointing beyound packet head
     
-#if BINARY
+#if COMPRESSION
+    //bufferLen = hexaToBinaryCompression( sourcePtr, destPtr, bufferLen);
+//    send(sourcePtr, bufferLen);
+//    putchar('\n');
     bufferLen = hexaToBinaryCompression( sourcePtr, destPtr, bufferLen);
+//    bufferLen = binaryToHexaDecompression( buf, 
+//                                    destPtr, 
+//                                    bufferLen);
+//    send(destPtr, bufferLen);
+//    putchar('\n');
+//    for(wordLen = 0; wordLen < wordLen; wordLen++){
+//      if(*sourcePtr != *destPtr)
+//      {
+//        putchar('x');
+//        printf("pos %d \n",wordLen);
+//      }
+//      sourcePtr++;
+//      destPtr++;
+//    }
 #else
     memcpy(destPtr, sourcePtr, bufferLen); //copy packet to memory
 #endif
@@ -795,7 +822,7 @@ void UART_Int_Handler (void)
   rxUARTcount++;
   
   //check place in uart buffer
-#if BINARY
+#if COMPRESSION
   if (rxUARTcount <= (UART_BUFFER_DEEPTH - (HEAD_LENGHT*2) -1 ))
 #else
   if (rxUARTcount <= (UART_BUFFER_DEEPTH - HEAD_LENGHT))
@@ -808,9 +835,8 @@ void UART_Int_Handler (void)
   
   if ( ch == STRING_TERMINATOR ){
     // check if is in buffer enought place to store new word to packet
-      #if BINARY
-        rxUARTcount++;
-        if ((rxUARTcount >= (UART_BUFFER_DEEPTH - ((HEAD_LENGHT*2) + MAX_LEN_OF_RX_PKT)))
+      #if COMPRESSION
+        if ((rxUARTcount >= ((UART_BUFFER_DEEPTH) - ((HEAD_LENGHT*2) + MAX_LEN_OF_RX_PKT)))
       #else
         if ((rxUARTcount >= (UART_BUFFER_DEEPTH - (HEAD_LENGHT + MAX_LEN_OF_RX_PKT)))
       #endif
