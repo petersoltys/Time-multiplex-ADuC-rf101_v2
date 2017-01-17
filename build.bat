@@ -13,15 +13,23 @@
         :: slave       -- build all 4 Slave hex files
         :: download    -- start bootloader 4 times for any slave
         
+:: second option is number of how many slaves is expected
+        
         
 @echo off
-SET slave=4
+
+
+set slave=%~2
+IF "%~2"==""  (
+    SET slave=4
+)
 
 IF "%~1"==""  (
 
     echo staviam vsetko
     Revision_control\fnr.exe --cl --dir "%cd%" --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>1</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>0</RunDebugAfterBuild>"
     
+    Revision_control\fnr.exe --cl --dir "%cd%\src" --fileMask "*.h" --includeSubDirectories --caseSensitive --useRegEx --useEscapeChars --find "NUMBER_OF_SLAVES [0-9]" --replace "NUMBER_OF_SLAVES %slave%"
     UV4 -b Radio.uvproj -t Master -j0 -o output/Build_Master.txt
     copy "obj\Radio.hex" "output\Master.hex"
     
@@ -35,6 +43,8 @@ IF "%~1"==""  (
 
 IF "%~1" == "master" (
     echo staviam Master projekt
+    Revision_control\fnr.exe --cl --dir "%cd%" --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>1</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>0</RunDebugAfterBuild>"
+    Revision_control\fnr.exe --cl --dir "%cd%\src" --fileMask "*.h" --includeSubDirectories --caseSensitive --useRegEx --useEscapeChars --find "NUMBER_OF_SLAVES [0-9]" --replace "NUMBER_OF_SLAVES %slave%"
     UV4 -b Radio.uvproj -t Master -j0 -o output/Build_Master.txt
     copy "obj\Radio.hex" "output\Master.hex"
     Revision_control\fnr.exe --cl --dir "%cd%" --fileMask "*.uvproj" --includeSubDirectories --caseSensitive --useEscapeChars --find "<RunDebugAfterBuild>0</RunDebugAfterBuild>" --replace "<RunDebugAfterBuild>1</RunDebugAfterBuild>"
