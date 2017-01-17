@@ -28,6 +28,8 @@ bool terminal = false;
 bool decompression = false;
 uwbPacketRx reciever;
 
+std::chrono::time_point<std::chrono::system_clock> programStart;
+
 FILE* logFilePointer;
 
 
@@ -61,7 +63,7 @@ void print_time(bool into_file){
 
     time(&timer);
     tm_info = localtime(&timer);
-    strftime(buffer, 26, "\n%Y:%m:%d %H:%M:%S ->", tm_info);
+    strftime(buffer, 26, "\n%H:%M:%S %d:%m:%Y->", tm_info);
     puts(buffer);           //vypis casovej stopy
     if (into_file == true){
         fputs(buffer,logFilePointer);
@@ -159,6 +161,11 @@ void listPorts(void){
 void close_all ()
 {
    printf("\nzatvaram port a log subor\n");
+   std::chrono::duration<double> elapsed_time = std::chrono::system_clock::now() - programStart;
+
+   printf("\n program bezal %d minut ",(int)elapsed_time.count()/60);
+   fprintf(logFilePointer,"\n program bezal %d minut ",(int)elapsed_time.count()/60);
+    
    fclose(logFilePointer);
    RS232_CloseComport(comPort -1);
 }
@@ -270,6 +277,8 @@ int main(int argc, char *argv[])
     char message[100];
     unsigned char buffer[250];
     int bufferPointer = 0;
+
+    programStart = std::chrono::system_clock::now();
 
     logFilePointer = fopen(logFile,"w+");
     atexit(close_all);
@@ -400,7 +409,7 @@ int main(int argc, char *argv[])
                         }
                     }
                 }else{
-                    /*
+                    
                     buffer[bufferPointer] = c;
                     bufferPointer++;
                     
@@ -430,7 +439,7 @@ int main(int argc, char *argv[])
                             bufferPointer -= (sizeof(struct PRNGrandomPacket) +1);
                         }
                         
-                    }*/
+                    }
                 }
             }
         }

@@ -140,7 +140,10 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
         /*check slave id if is in range*/
         if (numOfSlaves >= receivedPkt->slave_id ){
             localSlave = &localPktArray[receivedPkt->slave_id -1];
-            PRNGnew(localSlave);
+            if (localSlave->packetNumberDiff >= 0)
+              PRNGnew(localSlave);
+            else
+              localSlave->packetNumberDiff++;
             /*check number of packet if is same as expected*/
             if (localSlave->packet.numberOfPacket == receivedPkt->numberOfPacket){
                 /*check PRNG part*/
@@ -156,7 +159,7 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                 }
             }else{/*if number of packet does not match*/
                 /*check order of packet*/
-                if (receivedPkt->numberOfPacket > localSlave->packet.numberOfPacket){
+                if (receivedPkt->numberOfPacket >= localSlave->packet.numberOfPacket){
                     /*if order of packets is correct*/
                     missing = receivedPkt->numberOfPacket - localSlave->packet.numberOfPacket;
                     sprintf((char *)message,"\nmissing %d packets of slave %d#",missing,localSlave->packet.slave_id);
@@ -174,20 +177,21 @@ int8_t PRNGcheck(struct PRNGslave* localPktArray, struct PRNGrandomPacket * rece
                     return 1;
                 }else{/*if oreder of packets is switched*/
                     missing = localSlave->packet.numberOfPacket - receivedPkt->numberOfPacket;
-                    if (missing < ((2^16) - MAX_DIFF)){/*check if packet number overflow*/
+                    if (missing < (uint16_t)((2^16) - MAX_DIFF)){/*check if packet number overflow*/
                         sprintf((char *)message,"\nnumber of packet is owerflowed and are missing %d packets of slave %d#",(2^16 - missing),receivedPkt->slave_id);
                         localSlave->numberOfMissingPackets += (2^16 - missing);
                         return 1;
                     }else if (missing > MAX_DIFF){
                         sprintf((char *)message,"\npacket number is less than expected, switched order ? diff %d of slave %d , probably PktGenerator was restarted?#",missing,receivedPkt->slave_id);
-                        sprintf((char *)message,"\nstatistics was : %d of received packets and %d of missing packets#",message,localSlave->numberOfReceivedPackets,localSlave->numberOfMissingPackets);
+                        sprintf((char *)message,"%s\nstatistics was : %d of received packets and %d of missing packets#",(char *)message,localSlave->numberOfReceivedPackets,localSlave->numberOfMissingPackets);
                         localSlave->next = SEED;
                         localSlave->numberOfMissingPackets = 0;
                         localSlave->numberOfReceivedPackets = 0;
                         localSlave->packet.numberOfPacket = 0;
                         return 1;
                     }else{
-                        sprintf((char *)message,"\npacket number is less than expected, switched order ? diff %d of slave %d#",missing,receivedPkt->slave_id);
+                        sprintf((char *)message,"\npacket number is less than expected, switched order ? %d - %d diff %d of slave %d#",localSlave->packet.numberOfPacket,receivedPkt->numberOfPacket,missing,receivedPkt->slave_id);
+                        localSlave->packetNumberDiff = -missing;
                         return 1;
                     }
                 }

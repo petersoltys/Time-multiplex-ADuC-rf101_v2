@@ -21,6 +21,7 @@ struct PRNGslave {
    uint32_t numberOfMissingPackets;
    uint32_t numberOfReceivedPackets;
    uint16_t receivedBytes;
+   int16_t  packetNumberDiff;
    struct PRNGrandomPacket packet;
 };
 
